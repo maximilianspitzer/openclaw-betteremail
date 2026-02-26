@@ -1,5 +1,5 @@
 {
-  "name": "@betteremail/betteremail",
+  "name": "@better_openclaw/betteremail",
   "version": "0.1.0",
   "description": "Email digest plugin for OpenClaw — polls Gmail, deduplicates, classifies importance, exposes digest to agent",
   "license": "AGPL-3.0-only",
