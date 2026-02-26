@@ -36,6 +36,7 @@ describe("runPipeline", () => {
     mockEmailLog = {
       append: vi.fn(),
       hasMessageId: vi.fn().mockResolvedValue(false),
+      readAll: vi.fn().mockResolvedValue([]),
     };
 
     mockPoller = {
@@ -44,6 +45,8 @@ describe("runPipeline", () => {
       pollAccount: vi.fn().mockResolvedValue([makeEmail()]),
       recordSuccess: vi.fn(),
       recordFailure: vi.fn().mockReturnValue(1),
+      getAccountState: vi.fn().mockReturnValue(undefined),
+      checkThreadForReply: vi.fn().mockResolvedValue(false),
     };
 
     mockClassifier = {
@@ -147,6 +150,65 @@ describe("runPipeline", () => {
     });
 
     expect(mockDigest.expireDeferrals).toHaveBeenCalled();
+  });
+
+  it("calls recordSuccess after successful poll", async () => {
+    mockPoller.getAccountState.mockReturnValue({ historyId: "hist-123", lastPollAt: "", consecutiveFailures: 2 });
+
+    await runPipeline({
+      accounts: ["test@gmail.com"],
+      poller: mockPoller,
+      classifier: mockClassifier,
+      digest: mockDigest,
+      emailLog: mockEmailLog,
+      logger: mockLogger,
+      runCommand: mockRunCommand,
+      consecutiveFailuresBeforeAlert: 3,
+    });
+
+    expect(mockPoller.recordSuccess).toHaveBeenCalledWith("test@gmail.com", "hist-123");
+  });
+
+  it("builds seenIds from email log", async () => {
+    mockEmailLog.readAll.mockResolvedValue([
+      { email: { id: "seen-1" }, importance: "low", reason: "test", notify: false, timestamp: 1 },
+    ]);
+
+    await runPipeline({
+      accounts: ["test@gmail.com"],
+      poller: mockPoller,
+      classifier: mockClassifier,
+      digest: mockDigest,
+      emailLog: mockEmailLog,
+      logger: mockLogger,
+      runCommand: mockRunCommand,
+      consecutiveFailuresBeforeAlert: 3,
+    });
+
+    const passedSet = mockPoller.pollAccount.mock.calls[0][1] as Set<string>;
+    expect(passedSet.has("seen-1")).toBe(true);
+  });
+
+  it("auto-resolves active threads when owner replied", async () => {
+    mockPoller.pollAccount.mockResolvedValue([]);
+    mockDigest.getActiveThreadIds.mockReturnValue([
+      { id: "msg-active", threadId: "t-active", account: "test@gmail.com", status: "new" },
+    ]);
+    mockPoller.checkThreadForReply.mockResolvedValue(true);
+
+    await runPipeline({
+      accounts: ["test@gmail.com"],
+      poller: mockPoller,
+      classifier: mockClassifier,
+      digest: mockDigest,
+      emailLog: mockEmailLog,
+      logger: mockLogger,
+      runCommand: mockRunCommand,
+      consecutiveFailuresBeforeAlert: 3,
+    });
+
+    expect(mockPoller.checkThreadForReply).toHaveBeenCalledWith("t-active", "test@gmail.com");
+    expect(mockDigest.markHandled).toHaveBeenCalledWith("msg-active");
   });
 
   it("alerts agent after consecutive failures exceed threshold", async () => {

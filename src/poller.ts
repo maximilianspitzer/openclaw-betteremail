@@ -116,6 +116,16 @@ export class Poller {
     }
   }
 
+  async checkThreadForReply(threadId: string, account: string): Promise<boolean> {
+    const result = await this.runGog([
+      "gmail", "thread", "get", threadId, "--account", account, "--json",
+    ]);
+    if (!result.ok) return false;
+    const thread = parseGogThread(result.stdout);
+    if (!thread) return false;
+    return detectOwnerReply(thread, this.accounts);
+  }
+
   async pollAccount(account: string, seenMessageIds: Set<string>): Promise<TrimmedEmail[]> {
     const accountState = this.state.accounts[account];
     const historyId = accountState?.historyId;
@@ -154,11 +164,10 @@ export class Poller {
         "gmail", "thread", "get", msg.threadId, "--account", account, "--json",
       ]);
 
-      if (threadResult.ok) {
-        const thread = parseGogThread(threadResult.stdout);
-        if (thread && detectOwnerReply(thread, this.accounts)) {
-          continue;
-        }
+      const thread = threadResult.ok ? parseGogThread(threadResult.stdout) : null;
+
+      if (thread && detectOwnerReply(thread, this.accounts)) {
+        continue;
       }
 
       trimmedEmails.push({
@@ -170,7 +179,7 @@ export class Poller {
         subject: msg.subject ?? "(no subject)",
         date: msg.date ?? new Date().toISOString(),
         body: trimEmailBody(msg.body ?? ""),
-        threadLength: threadResult.ok ? (parseGogThread(threadResult.stdout)?.messages.length ?? 1) : 1,
+        threadLength: thread?.messages.length ?? 1,
         hasAttachments: Array.isArray(msg.labelIds) && msg.labelIds.includes("ATTACHMENT"),
       });
     }

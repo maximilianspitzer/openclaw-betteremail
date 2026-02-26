@@ -8,6 +8,8 @@ export interface PipelineDeps {
     pollAccount(account: string, seenMessageIds: Set<string>): Promise<TrimmedEmail[]>;
     recordSuccess(account: string, historyId: string): void;
     recordFailure(account: string): number;
+    getAccountState(account: string): { historyId: string; lastPollAt: string; consecutiveFailures: number } | undefined;
+    checkThreadForReply(threadId: string, account: string): Promise<boolean>;
   };
   classifier: {
     classify(emails: TrimmedEmail[]): Promise<ClassificationResult[]>;
@@ -24,6 +26,7 @@ export interface PipelineDeps {
   emailLog: {
     append(entry: EmailLogEntry): Promise<void>;
     hasMessageId(id: string): Promise<boolean>;
+    readAll(): Promise<EmailLogEntry[]>;
   };
   logger: {
     info(msg: string): void;
@@ -47,13 +50,33 @@ export async function runPipeline(deps: PipelineDeps): Promise<void> {
     logger.info(`betteremail: ${expired.length} deferred email(s) re-entered digest`);
   }
 
+  // Auto-resolve: re-check active threads for owner replies
+  const activeEntries = digest.getActiveThreadIds();
+  for (const entry of activeEntries) {
+    try {
+      const replied = await poller.checkThreadForReply(entry.threadId, entry.account);
+      if (replied) {
+        digest.markHandled(entry.id);
+        logger.info(`betteremail: auto-resolved ${entry.id} — owner replied`);
+      }
+    } catch {
+      // Non-critical — will retry next cycle
+    }
+  }
+
+  // Build seen IDs set from email log
+  const allLogEntries = await emailLog.readAll();
+  const seenIds = new Set(allLogEntries.map(e => e.email.id));
+
   const allNewEmails: TrimmedEmail[] = [];
 
   for (const account of accounts) {
     try {
-      const emails = await poller.pollAccount(account, new Set());
+      const emails = await poller.pollAccount(account, seenIds);
       const filtered = emails.filter((e) => !digest.has(e.id));
       allNewEmails.push(...filtered);
+      const currentState = poller.getAccountState(account);
+      poller.recordSuccess(account, currentState?.historyId ?? "");
       logger.info(`betteremail: ${account} — ${emails.length} fetched, ${filtered.length} new`);
     } catch (err) {
       const failures = poller.recordFailure(account);
