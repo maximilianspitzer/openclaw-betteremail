@@ -139,6 +139,7 @@ export class Classifier {
         timeoutMs: this.timeoutMs,
         runId: `betteremail-classify-${Date.now()}`,
         disableTools: true,
+        skillsSnapshot: (this.api as any).skillsSnapshot ?? undefined,
       });
 
       const text = extractText(result.payloads ?? []);

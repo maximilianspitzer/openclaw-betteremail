@@ -53,6 +53,8 @@ describe("Integration: full pipeline cycle", () => {
           .mockResolvedValueOnce([mockEmails[1]]),
         recordSuccess: vi.fn(),
         recordFailure: vi.fn().mockReturnValue(1),
+        getAccountState: vi.fn().mockReturnValue(undefined),
+        checkThreadForReply: vi.fn().mockResolvedValue(false),
       },
       classifier: {
         classify: vi.fn().mockResolvedValue(mockClassifications),
@@ -111,6 +113,8 @@ describe("Integration: full pipeline cycle", () => {
           threadLength: 1, hasAttachments: false },
       ]),
       recordSuccess: vi.fn(), recordFailure: vi.fn().mockReturnValue(1),
+      getAccountState: vi.fn().mockReturnValue(undefined),
+      checkThreadForReply: vi.fn().mockResolvedValue(false),
     };
 
     await runPipeline({
@@ -154,6 +158,8 @@ describe("Integration: full pipeline cycle", () => {
         loadState: vi.fn(), saveState: vi.fn(),
         pollAccount: vi.fn().mockResolvedValue([]),
         recordSuccess: vi.fn(), recordFailure: vi.fn().mockReturnValue(0),
+        getAccountState: vi.fn().mockReturnValue(undefined),
+        checkThreadForReply: vi.fn().mockResolvedValue(false),
       },
       classifier: { classify: vi.fn().mockResolvedValue([]) },
       digest,
