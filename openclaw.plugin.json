@@ -1,0 +1,53 @@
+{
+  "id": "betteremail",
+  "name": "BetterEmail Digest",
+  "description": "Intelligent email digest — polls Gmail, deduplicates, classifies importance, exposes digest to agent",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "accounts": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": []
+      },
+      "pollIntervalMinutes": {
+        "type": "object",
+        "properties": {
+          "workHours": { "type": "number", "default": 5 },
+          "offHours": { "type": "number", "default": 30 }
+        },
+        "default": { "workHours": 5, "offHours": 30 }
+      },
+      "workHours": {
+        "type": "object",
+        "properties": {
+          "start": { "type": "number", "default": 9 },
+          "end": { "type": "number", "default": 18 },
+          "timezone": { "type": "string", "default": "Europe/London" }
+        },
+        "default": { "start": 9, "end": 18, "timezone": "Europe/London" }
+      },
+      "classifierTimeoutMs": {
+        "type": "number",
+        "default": 30000
+      },
+      "consecutiveFailuresBeforeAlert": {
+        "type": "number",
+        "default": 3
+      },
+      "rescanDaysOnHistoryReset": {
+        "type": "number",
+        "default": 7
+      }
+    }
+  },
+  "uiHints": {
+    "accounts": { "label": "Gmail accounts to poll", "placeholder": "user@gmail.com" },
+    "pollIntervalMinutes": { "label": "Poll intervals (minutes)" },
+    "workHours": { "label": "Work hours schedule" },
+    "classifierTimeoutMs": { "label": "Classifier timeout (ms)" },
+    "consecutiveFailuresBeforeAlert": { "label": "Failures before alerting agent" }
+  }
+}

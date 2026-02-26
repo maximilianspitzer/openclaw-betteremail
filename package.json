@@ -1,0 +1,16 @@
+{
+  "name": "@betteremail/betteremail",
+  "version": "0.1.0",
+  "description": "Email digest plugin for OpenClaw — polls Gmail, deduplicates, classifies importance, exposes digest to agent",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./src/index.ts"]
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}
