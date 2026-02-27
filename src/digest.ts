@@ -1,12 +1,15 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { DigestEntry, DigestState, DigestStatus } from "./types.js";
+import { atomicWrite } from "./atomic.js";
 
 const DIGEST_FILE = "digest.json";
 
 export class DigestManager {
   private filePath: string;
   private state: DigestState;
+  private saving = false;
+  private saveQueue: (() => void)[] = [];
 
   constructor(stateDir: string) {
     this.filePath = path.join(stateDir, DIGEST_FILE);
@@ -23,8 +26,17 @@ export class DigestManager {
   }
 
   async save(): Promise<void> {
-    await fs.mkdir(path.dirname(this.filePath), { recursive: true });
-    await fs.writeFile(this.filePath, JSON.stringify(this.state, null, 2) + "\n", "utf8");
+    if (this.saving) {
+      await new Promise<void>((resolve) => this.saveQueue.push(resolve));
+    }
+    this.saving = true;
+    try {
+      await atomicWrite(this.filePath, JSON.stringify(this.state, null, 2) + "\n");
+    } finally {
+      this.saving = false;
+      const next = this.saveQueue.shift();
+      if (next) next();
+    }
   }
 
   add(entry: DigestEntry): void {

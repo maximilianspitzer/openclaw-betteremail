@@ -3,6 +3,7 @@ import type { RawGogMessage, RawGogThread, PollState, TrimmedEmail } from "./typ
 import { trimEmailBody } from "./trimmer.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { atomicWrite } from "./atomic.js";
 
 const STATE_FILE = "state.json";
 
@@ -68,11 +69,9 @@ export class Poller {
   }
 
   async saveState(): Promise<void> {
-    await fs.mkdir(this.stateDir, { recursive: true });
-    await fs.writeFile(
+    await atomicWrite(
       path.join(this.stateDir, STATE_FILE),
       JSON.stringify(this.state, null, 2) + "\n",
-      "utf8",
     );
   }
 

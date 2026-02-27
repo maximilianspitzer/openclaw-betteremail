@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { EmailLogEntry } from "./types.js";
+import { atomicWrite } from "./atomic.js";
 
 const EMAILS_FILE = "emails.jsonl";
 const DEFAULT_MAX_LINES = 10_000;
@@ -46,7 +47,7 @@ export class EmailLog {
     const removed = entries.length - kept.length;
 
     const content = kept.map((e) => JSON.stringify(e)).join("\n") + "\n";
-    await fs.writeFile(this.filePath, content, "utf8");
+    await atomicWrite(this.filePath, content);
 
     return removed;
   }

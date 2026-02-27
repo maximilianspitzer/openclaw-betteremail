@@ -126,4 +126,23 @@ describe("DigestManager", () => {
     expect(digest.has("msg-1")).toBe(true);
     expect(digest.has("nonexistent")).toBe(false);
   });
+
+  it("save uses atomic write (no temp files left behind)", async () => {
+    digest.add(makeEntry());
+    await digest.save();
+    const files = await fs.readdir(tmpDir);
+    expect(files).toEqual(["digest.json"]);
+  });
+
+  it("concurrent saves do not corrupt data", async () => {
+    digest.add(makeEntry({ id: "msg-1" }));
+    // Fire multiple saves concurrently
+    const saves = Array.from({ length: 5 }, () => digest.save());
+    await Promise.all(saves);
+
+    // Reload and verify integrity
+    const digest2 = new DigestManager(tmpDir);
+    await digest2.load();
+    expect(digest2.get("msg-1")?.subject).toBe("Test email");
+  });
 });

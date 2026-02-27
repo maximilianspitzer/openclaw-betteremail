@@ -81,4 +81,20 @@ describe("EmailLog", () => {
     const remaining = await log.readAll();
     expect(remaining.length).toBeLessThanOrEqual(3);
   });
+
+  it("rotate uses atomic write (no temp files left behind)", async () => {
+    for (let i = 0; i < 5; i++) {
+      await log.append({
+        email: makeTrimmedEmail({ id: `msg-${i}` }),
+        importance: "low",
+        reason: "test",
+        notify: false,
+        timestamp: Date.now() / 1000,
+      });
+    }
+    await log.rotate(2);
+    const files = await fs.readdir(tmpDir);
+    // Only the emails.jsonl file should remain (no .tmp files)
+    expect(files.every((f) => !f.endsWith(".tmp"))).toBe(true);
+  });
 });
