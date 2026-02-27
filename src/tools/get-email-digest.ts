@@ -21,7 +21,11 @@ export function createGetEmailDigestTool(digest: DigestManager) {
       ),
     }),
     async execute(_id: string, params: Record<string, unknown>) {
+      const validStatuses = ["new", "surfaced", "deferred", "all"];
       const status = (typeof params.status === "string" ? params.status : "new") as DigestStatus | "all";
+      if (!validStatuses.includes(status)) {
+        return { content: [{ type: "text" as const, text: `Error: status must be one of: ${validStatuses.join(", ")}` }] };
+      }
       const account = typeof params.account === "string" ? params.account : undefined;
 
       let grouped = digest.getGroupedByAccount(status);
@@ -30,14 +34,7 @@ export function createGetEmailDigestTool(digest: DigestManager) {
         grouped = { [account]: grouped[account] ?? [] };
       }
 
-      for (const entries of Object.values(grouped)) {
-        for (const entry of entries) {
-          if (entry.status === "new") {
-            digest.markSurfaced(entry.id);
-          }
-        }
-      }
-
+      // Build response first (while status is still "new")
       const summary: Record<string, unknown[]> = {};
       for (const [acc, entries] of Object.entries(grouped)) {
         summary[acc] = entries.map((e) => ({
@@ -52,6 +49,15 @@ export function createGetEmailDigestTool(digest: DigestManager) {
           body: e.body,
           deferredUntil: e.deferredUntil ?? undefined,
         }));
+      }
+
+      // THEN mark as surfaced
+      for (const entries of Object.values(grouped)) {
+        for (const entry of entries) {
+          if (entry.status === "new") {
+            digest.markSurfaced(entry.id);
+          }
+        }
       }
 
       await digest.save();

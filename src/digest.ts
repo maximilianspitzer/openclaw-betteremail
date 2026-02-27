@@ -97,11 +97,12 @@ export class DigestManager {
     }
   }
 
-  dismiss(id: string): void {
+  dismiss(id: string, reason?: string): void {
     const entry = this.state.entries[id];
     if (entry) {
       entry.status = "dismissed";
       entry.resolvedAt = new Date().toISOString();
+      if (reason) entry.dismissReason = reason;
     }
   }
 

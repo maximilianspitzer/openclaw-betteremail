@@ -10,10 +10,16 @@ export function createMarkEmailHandledTool(digest: DigestManager) {
       messageId: Type.String({ description: "The message ID to mark as handled" }),
     }),
     async execute(_id: string, params: Record<string, unknown>) {
-      const messageId = params.messageId as string;
+      if (typeof params.messageId !== "string" || !params.messageId) {
+        return { content: [{ type: "text" as const, text: "Error: messageId must be a non-empty string." }] };
+      }
+      const messageId = params.messageId;
       const entry = digest.get(messageId);
       if (!entry) {
         return { content: [{ type: "text" as const, text: `Email ${messageId} not found in digest.` }] };
+      }
+      if (entry.status === "handled" || entry.status === "dismissed") {
+        return { content: [{ type: "text" as const, text: `Cannot mark as handled: email is already "${entry.status}".` }] };
       }
       digest.markHandled(messageId);
       await digest.save();
