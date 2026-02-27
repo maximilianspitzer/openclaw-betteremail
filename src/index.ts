@@ -22,33 +22,22 @@ const DEFAULT_CONFIG: PluginConfig = {
 };
 
 function resolveConfig(raw: Record<string, unknown> | undefined): PluginConfig {
+  const pollIntervalRaw = raw?.pollIntervalMinutes && typeof raw.pollIntervalMinutes === "object"
+    ? raw.pollIntervalMinutes as Record<string, unknown> : null;
+  const workHoursRaw = raw?.workHours && typeof raw.workHours === "object"
+    ? raw.workHours as Record<string, unknown> : null;
+
   return {
     accounts: Array.isArray(raw?.accounts) ? (raw.accounts as string[]) : DEFAULT_CONFIG.accounts,
-    pollIntervalMinutes:
-      raw?.pollIntervalMinutes && typeof raw.pollIntervalMinutes === "object"
-        ? {
-            workHours: typeof (raw.pollIntervalMinutes as any).workHours === "number"
-              ? (raw.pollIntervalMinutes as any).workHours
-              : DEFAULT_CONFIG.pollIntervalMinutes.workHours,
-            offHours: typeof (raw.pollIntervalMinutes as any).offHours === "number"
-              ? (raw.pollIntervalMinutes as any).offHours
-              : DEFAULT_CONFIG.pollIntervalMinutes.offHours,
-          }
-        : DEFAULT_CONFIG.pollIntervalMinutes,
-    workHours:
-      raw?.workHours && typeof raw.workHours === "object"
-        ? {
-            start: typeof (raw.workHours as any).start === "number"
-              ? (raw.workHours as any).start
-              : DEFAULT_CONFIG.workHours.start,
-            end: typeof (raw.workHours as any).end === "number"
-              ? (raw.workHours as any).end
-              : DEFAULT_CONFIG.workHours.end,
-            timezone: typeof (raw.workHours as any).timezone === "string"
-              ? (raw.workHours as any).timezone
-              : DEFAULT_CONFIG.workHours.timezone,
-          }
-        : DEFAULT_CONFIG.workHours,
+    pollIntervalMinutes: pollIntervalRaw ? {
+      workHours: typeof pollIntervalRaw.workHours === "number" ? pollIntervalRaw.workHours : DEFAULT_CONFIG.pollIntervalMinutes.workHours,
+      offHours: typeof pollIntervalRaw.offHours === "number" ? pollIntervalRaw.offHours : DEFAULT_CONFIG.pollIntervalMinutes.offHours,
+    } : DEFAULT_CONFIG.pollIntervalMinutes,
+    workHours: workHoursRaw ? {
+      start: typeof workHoursRaw.start === "number" ? workHoursRaw.start : DEFAULT_CONFIG.workHours.start,
+      end: typeof workHoursRaw.end === "number" ? workHoursRaw.end : DEFAULT_CONFIG.workHours.end,
+      timezone: typeof workHoursRaw.timezone === "string" ? workHoursRaw.timezone : DEFAULT_CONFIG.workHours.timezone,
+    } : DEFAULT_CONFIG.workHours,
     classifierTimeoutMs:
       typeof raw?.classifierTimeoutMs === "number" ? raw.classifierTimeoutMs : DEFAULT_CONFIG.classifierTimeoutMs,
     consecutiveFailuresBeforeAlert:

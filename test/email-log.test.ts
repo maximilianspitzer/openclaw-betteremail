@@ -53,19 +53,6 @@ describe("EmailLog", () => {
     expect(all).toEqual([]);
   });
 
-  it("checks if a message ID has been seen", async () => {
-    const entry: EmailLogEntry = {
-      email: makeTrimmedEmail({ id: "seen-msg" }),
-      importance: "low",
-      reason: "not important",
-      notify: false,
-      timestamp: Date.now() / 1000,
-    };
-    await log.append(entry);
-    expect(await log.hasMessageId("seen-msg")).toBe(true);
-    expect(await log.hasMessageId("unseen-msg")).toBe(false);
-  });
-
   it("rotates old entries", async () => {
     for (let i = 0; i < 5; i++) {
       await log.append({

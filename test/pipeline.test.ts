@@ -28,14 +28,13 @@ describe("runPipeline", () => {
       save: vi.fn(),
       add: vi.fn(),
       has: vi.fn().mockReturnValue(false),
-      getActiveThreadIds: vi.fn().mockReturnValue([]),
+      getActiveEntries: vi.fn().mockReturnValue([]),
       expireDeferrals: vi.fn().mockReturnValue([]),
       markHandled: vi.fn(),
     };
 
     mockEmailLog = {
       append: vi.fn(),
-      hasMessageId: vi.fn().mockResolvedValue(false),
       readAll: vi.fn().mockResolvedValue([]),
     };
 
@@ -211,7 +210,7 @@ describe("runPipeline", () => {
 
   it("auto-resolves active threads when owner replied", async () => {
     mockPoller.pollAccount.mockResolvedValue({ emails: [], historyId: undefined });
-    mockDigest.getActiveThreadIds.mockReturnValue([
+    mockDigest.getActiveEntries.mockReturnValue([
       { id: "msg-active", threadId: "t-active", account: "test@gmail.com", status: "new" },
     ]);
     mockPoller.checkThreadForReply.mockResolvedValue(true);

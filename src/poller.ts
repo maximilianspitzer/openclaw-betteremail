@@ -50,7 +50,8 @@ function extractEmail(fromField: string): string {
 
 export function detectOwnerReply(thread: RawGogThread, ownerAccounts: string[]): boolean {
   const lowerAccounts = ownerAccounts.map((a) => a.toLowerCase());
-  return thread.messages.some((msg) => {
+  // Skip first message (could be user-initiated thread)
+  return thread.messages.slice(1).some((msg) => {
     if (!msg.from) return false;
     const email = extractEmail(msg.from);
     return lowerAccounts.includes(email);
