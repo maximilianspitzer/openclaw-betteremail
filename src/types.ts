@@ -85,6 +85,7 @@ export interface DigestEntry {
   surfacedAt?: string;
   deferredUntil?: string;
   resolvedAt?: string;
+  dismissReason?: string;
 }
 
 // -- Digest state file --

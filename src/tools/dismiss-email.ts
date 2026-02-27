@@ -11,12 +11,19 @@ export function createDismissEmailTool(digest: DigestManager) {
       reason: Type.Optional(Type.String({ description: "Optional reason for dismissing" })),
     }),
     async execute(_id: string, params: Record<string, unknown>) {
-      const messageId = params.messageId as string;
+      if (typeof params.messageId !== "string" || !params.messageId) {
+        return { content: [{ type: "text" as const, text: "Error: messageId must be a non-empty string." }] };
+      }
+      const messageId = params.messageId;
+      const reason = typeof params.reason === "string" ? params.reason : undefined;
       const entry = digest.get(messageId);
       if (!entry) {
         return { content: [{ type: "text" as const, text: `Email ${messageId} not found in digest.` }] };
       }
-      digest.dismiss(messageId);
+      if (entry.status === "handled" || entry.status === "dismissed") {
+        return { content: [{ type: "text" as const, text: `Cannot dismiss: email is already "${entry.status}".` }] };
+      }
+      digest.dismiss(messageId, reason);
       await digest.save();
       return {
         content: [{ type: "text" as const, text: `Dismissed "${entry.subject}" from ${entry.from}. It won't be flagged again.` }],
