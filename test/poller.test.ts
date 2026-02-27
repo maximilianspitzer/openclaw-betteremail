@@ -112,4 +112,15 @@ describe("detectOwnerReply", () => {
     };
     expect(detectOwnerReply(thread, ownerAccounts)).toBe(true);
   });
+
+  it("returns false when owner is only the original sender (first message)", () => {
+    const thread: RawGogThread = {
+      id: "t-1",
+      messages: [
+        { id: "msg-1", threadId: "t-1", from: "me@work.com" },
+        { id: "msg-2", threadId: "t-1", from: "other@example.com" },
+      ],
+    };
+    expect(detectOwnerReply(thread, ownerAccounts)).toBe(false);
+  });
 });

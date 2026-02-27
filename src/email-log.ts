@@ -33,11 +33,6 @@ export class EmailLog {
     }
   }
 
-  async hasMessageId(id: string): Promise<boolean> {
-    const all = await this.readAll();
-    return all.some((e) => e.email.id === id);
-  }
-
   async rotate(maxLines: number = DEFAULT_MAX_LINES): Promise<number> {
     const entries = await this.readAll();
     if (entries.length <= maxLines) return 0;

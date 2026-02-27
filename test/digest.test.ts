@@ -112,13 +112,13 @@ describe("DigestManager", () => {
     expect(digest2.get("msg-1")?.subject).toBe("Test email");
   });
 
-  it("returns entries needing re-check (surfaced + deferred)", () => {
+  it("returns active entries needing re-check (new + surfaced + deferred)", () => {
     digest.add(makeEntry({ id: "msg-1", status: "surfaced" }));
     digest.add(makeEntry({ id: "msg-2", status: "deferred" }));
     digest.add(makeEntry({ id: "msg-3", status: "handled" }));
     digest.add(makeEntry({ id: "msg-4", status: "new" }));
-    const needCheck = digest.getActiveThreadIds();
-    expect(needCheck).toHaveLength(2);
+    const needCheck = digest.getActiveEntries();
+    expect(needCheck).toHaveLength(3);
   });
 
   it("has() checks if entry exists", () => {

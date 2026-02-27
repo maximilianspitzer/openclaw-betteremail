@@ -67,9 +67,9 @@ export class DigestManager {
     return grouped;
   }
 
-  getActiveThreadIds(): DigestEntry[] {
+  getActiveEntries(): DigestEntry[] {
     return Object.values(this.state.entries).filter(
-      (e) => e.status === "surfaced" || e.status === "deferred",
+      (e) => e.status === "new" || e.status === "surfaced" || e.status === "deferred",
     );
   }
 

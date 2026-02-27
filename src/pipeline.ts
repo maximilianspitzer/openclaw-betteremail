@@ -19,13 +19,12 @@ export interface PipelineDeps {
     save(): Promise<void>;
     add(entry: DigestEntry): void;
     has(id: string): boolean;
-    getActiveThreadIds(): DigestEntry[];
+    getActiveEntries(): DigestEntry[];
     expireDeferrals(): DigestEntry[];
     markHandled(id: string): void;
   };
   emailLog: {
     append(entry: EmailLogEntry): Promise<void>;
-    hasMessageId(id: string): Promise<boolean>;
     readAll(): Promise<EmailLogEntry[]>;
   };
   logger: {
@@ -51,7 +50,7 @@ export async function runPipeline(deps: PipelineDeps): Promise<void> {
   }
 
   // Auto-resolve: re-check active threads for owner replies
-  const activeEntries = digest.getActiveThreadIds();
+  const activeEntries = digest.getActiveEntries();
   for (const entry of activeEntries) {
     try {
       const replied = await poller.checkThreadForReply(entry.threadId, entry.account);
