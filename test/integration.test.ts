@@ -49,8 +49,8 @@ describe("Integration: full pipeline cycle", () => {
         loadState: vi.fn(),
         saveState: vi.fn(),
         pollAccount: vi.fn()
-          .mockResolvedValueOnce([mockEmails[0]])
-          .mockResolvedValueOnce([mockEmails[1]]),
+          .mockResolvedValueOnce({ emails: [mockEmails[0]], historyId: "hist-1" })
+          .mockResolvedValueOnce({ emails: [mockEmails[1]], historyId: "hist-2" }),
         recordSuccess: vi.fn(),
         recordFailure: vi.fn().mockReturnValue(1),
         getAccountState: vi.fn().mockReturnValue(undefined),
@@ -106,12 +106,12 @@ describe("Integration: full pipeline cycle", () => {
 
     const mockPoller = {
       loadState: vi.fn(), saveState: vi.fn(),
-      pollAccount: vi.fn().mockResolvedValue([
+      pollAccount: vi.fn().mockResolvedValue({ emails: [
         { id: "msg-1", threadId: "t-1", account: "work@co.com",
           from: "boss@co.com", to: "work@co.com", subject: "Review doc",
           date: "2026-02-26T10:00:00Z", body: "Please review",
           threadLength: 1, hasAttachments: false },
-      ]),
+      ], historyId: undefined }),
       recordSuccess: vi.fn(), recordFailure: vi.fn().mockReturnValue(1),
       getAccountState: vi.fn().mockReturnValue(undefined),
       checkThreadForReply: vi.fn().mockResolvedValue(false),
@@ -156,7 +156,7 @@ describe("Integration: full pipeline cycle", () => {
       accounts: ["work@co.com"],
       poller: {
         loadState: vi.fn(), saveState: vi.fn(),
-        pollAccount: vi.fn().mockResolvedValue([]),
+        pollAccount: vi.fn().mockResolvedValue({ emails: [], historyId: undefined }),
         recordSuccess: vi.fn(), recordFailure: vi.fn().mockReturnValue(0),
         getAccountState: vi.fn().mockReturnValue(undefined),
         checkThreadForReply: vi.fn().mockResolvedValue(false),

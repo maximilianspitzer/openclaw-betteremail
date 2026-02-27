@@ -42,7 +42,7 @@ describe("runPipeline", () => {
     mockPoller = {
       loadState: vi.fn(),
       saveState: vi.fn(),
-      pollAccount: vi.fn().mockResolvedValue([makeEmail()]),
+      pollAccount: vi.fn().mockResolvedValue({ emails: [makeEmail()], historyId: "new-hist-456" }),
       recordSuccess: vi.fn(),
       recordFailure: vi.fn().mockReturnValue(1),
       getAccountState: vi.fn().mockReturnValue(undefined),
@@ -92,10 +92,10 @@ describe("runPipeline", () => {
   });
 
   it("only adds high/medium to digest, logs all to emailLog", async () => {
-    mockPoller.pollAccount.mockResolvedValue([
-      makeEmail({ id: "msg-1" }),
-      makeEmail({ id: "msg-2" }),
-    ]);
+    mockPoller.pollAccount.mockResolvedValue({
+      emails: [makeEmail({ id: "msg-1" }), makeEmail({ id: "msg-2" })],
+      historyId: "new-hist-456",
+    });
     mockClassifier.classify.mockResolvedValue([
       { id: "msg-1", importance: "high", reason: "urgent", notify: true },
       { id: "msg-2", importance: "low", reason: "spam", notify: false },
@@ -135,7 +135,7 @@ describe("runPipeline", () => {
   });
 
   it("expires deferrals each cycle", async () => {
-    mockPoller.pollAccount.mockResolvedValue([]);
+    mockPoller.pollAccount.mockResolvedValue({ emails: [], historyId: undefined });
     mockDigest.expireDeferrals.mockReturnValue([{ id: "deferred-1" }]);
 
     await runPipeline({
@@ -152,8 +152,9 @@ describe("runPipeline", () => {
     expect(mockDigest.expireDeferrals).toHaveBeenCalled();
   });
 
-  it("calls recordSuccess after successful poll", async () => {
-    mockPoller.getAccountState.mockReturnValue({ historyId: "hist-123", lastPollAt: "", consecutiveFailures: 2 });
+  it("calls recordSuccess with NEW historyId from poll response", async () => {
+    mockPoller.pollAccount.mockResolvedValue({ emails: [makeEmail()], historyId: "new-hist-999" });
+    mockPoller.getAccountState.mockReturnValue({ historyId: "old-hist-123", lastPollAt: "", consecutiveFailures: 2 });
 
     await runPipeline({
       accounts: ["test@gmail.com"],
@@ -166,7 +167,26 @@ describe("runPipeline", () => {
       consecutiveFailuresBeforeAlert: 3,
     });
 
-    expect(mockPoller.recordSuccess).toHaveBeenCalledWith("test@gmail.com", "hist-123");
+    // Must use the NEW historyId, not the old one
+    expect(mockPoller.recordSuccess).toHaveBeenCalledWith("test@gmail.com", "new-hist-999");
+  });
+
+  it("falls back to old historyId when poll returns no historyId", async () => {
+    mockPoller.pollAccount.mockResolvedValue({ emails: [makeEmail()], historyId: undefined });
+    mockPoller.getAccountState.mockReturnValue({ historyId: "old-hist-123", lastPollAt: "", consecutiveFailures: 0 });
+
+    await runPipeline({
+      accounts: ["test@gmail.com"],
+      poller: mockPoller,
+      classifier: mockClassifier,
+      digest: mockDigest,
+      emailLog: mockEmailLog,
+      logger: mockLogger,
+      runCommand: mockRunCommand,
+      consecutiveFailuresBeforeAlert: 3,
+    });
+
+    expect(mockPoller.recordSuccess).toHaveBeenCalledWith("test@gmail.com", "old-hist-123");
   });
 
   it("builds seenIds from email log", async () => {
@@ -190,7 +210,7 @@ describe("runPipeline", () => {
   });
 
   it("auto-resolves active threads when owner replied", async () => {
-    mockPoller.pollAccount.mockResolvedValue([]);
+    mockPoller.pollAccount.mockResolvedValue({ emails: [], historyId: undefined });
     mockDigest.getActiveThreadIds.mockReturnValue([
       { id: "msg-active", threadId: "t-active", account: "test@gmail.com", status: "new" },
     ]);

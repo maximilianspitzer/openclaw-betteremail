@@ -19,6 +19,19 @@ export function parseGogMessages(stdout: string): RawGogMessage[] {
   }
 }
 
+export function extractHistoryId(stdout: string): string | undefined {
+  if (!stdout || !stdout.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(stdout.trim());
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && typeof parsed.historyId === "string") {
+      return parsed.historyId;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function parseGogThread(stdout: string): RawGogThread | null {
   if (!stdout || !stdout.trim()) return null;
   try {
@@ -125,15 +138,16 @@ export class Poller {
     return detectOwnerReply(thread, this.accounts);
   }
 
-  async pollAccount(account: string, seenMessageIds: Set<string>): Promise<TrimmedEmail[]> {
+  async pollAccount(account: string, seenMessageIds: Set<string>): Promise<{ emails: TrimmedEmail[]; historyId?: string }> {
     const accountState = this.state.accounts[account];
-    const historyId = accountState?.historyId;
+    const currentHistoryId = accountState?.historyId;
 
     let messages: RawGogMessage[];
+    let newHistoryId: string | undefined;
 
-    if (historyId) {
+    if (currentHistoryId) {
       const result = await this.runGog([
-        "gmail", "history", "--since", historyId, "--account", account, "--json",
+        "gmail", "history", "--since", currentHistoryId, "--account", account, "--json",
       ]);
       if (!result.ok) {
         this.api.logger.info(`betteremail: history fetch failed for ${account}, falling back to rescan`);
@@ -141,9 +155,11 @@ export class Poller {
           "gmail", "messages", "search", `newer_than:${this.rescanDays}d`,
           "--account", account, "--json", "--include-body",
         ]);
-        if (!fallback.ok) return [];
+        if (!fallback.ok) return { emails: [] };
         messages = parseGogMessages(fallback.stdout);
+        // No historyId from search fallback
       } else {
+        newHistoryId = extractHistoryId(result.stdout);
         messages = parseGogMessages(result.stdout);
       }
     } else {
@@ -151,8 +167,9 @@ export class Poller {
         "gmail", "messages", "search", `newer_than:${this.rescanDays}d`,
         "--account", account, "--json", "--include-body",
       ]);
-      if (!result.ok) return [];
+      if (!result.ok) return { emails: [] };
       messages = parseGogMessages(result.stdout);
+      // No historyId from initial search
     }
 
     const newMessages = messages.filter((m) => !seenMessageIds.has(m.id));
@@ -183,6 +200,6 @@ export class Poller {
       });
     }
 
-    return trimmedEmails;
+    return { emails: trimmedEmails, historyId: newHistoryId };
   }
 }

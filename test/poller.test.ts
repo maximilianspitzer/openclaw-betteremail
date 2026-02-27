@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectOwnerReply, parseGogMessages, parseGogThread } from "../src/poller.js";
+import { detectOwnerReply, extractHistoryId, parseGogMessages, parseGogThread } from "../src/poller.js";
 import type { RawGogMessage, RawGogThread } from "../src/types.js";
 
 describe("parseGogMessages", () => {
@@ -40,6 +40,40 @@ describe("parseGogThread", () => {
     expect(parseGogThread("")).toBeNull();
     expect(parseGogThread("garbage")).toBeNull();
     expect(parseGogThread(JSON.stringify({ id: "t-1" }))).toBeNull(); // missing messages
+  });
+});
+
+describe("extractHistoryId", () => {
+  it("extracts historyId from a valid gog history response", () => {
+    const response = JSON.stringify({
+      historyId: "12345",
+      messages: [{ id: "msg-1" }],
+    });
+    expect(extractHistoryId(response)).toBe("12345");
+  });
+
+  it("returns undefined for an array response (no top-level historyId)", () => {
+    const response = JSON.stringify([{ id: "msg-1" }]);
+    expect(extractHistoryId(response)).toBeUndefined();
+  });
+
+  it("returns undefined for empty or whitespace input", () => {
+    expect(extractHistoryId("")).toBeUndefined();
+    expect(extractHistoryId("   ")).toBeUndefined();
+  });
+
+  it("returns undefined for invalid JSON", () => {
+    expect(extractHistoryId("not json")).toBeUndefined();
+  });
+
+  it("returns undefined when historyId is not a string", () => {
+    const response = JSON.stringify({ historyId: 12345 });
+    expect(extractHistoryId(response)).toBeUndefined();
+  });
+
+  it("returns undefined for an object without historyId", () => {
+    const response = JSON.stringify({ id: "msg-1", threadId: "t-1" });
+    expect(extractHistoryId(response)).toBeUndefined();
   });
 });
 

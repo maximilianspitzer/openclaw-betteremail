@@ -5,7 +5,7 @@ export interface PipelineDeps {
   poller: {
     loadState(): Promise<void>;
     saveState(): Promise<void>;
-    pollAccount(account: string, seenMessageIds: Set<string>): Promise<TrimmedEmail[]>;
+    pollAccount(account: string, seenMessageIds: Set<string>): Promise<{ emails: TrimmedEmail[]; historyId?: string }>;
     recordSuccess(account: string, historyId: string): void;
     recordFailure(account: string): number;
     getAccountState(account: string): { historyId: string; lastPollAt: string; consecutiveFailures: number } | undefined;
@@ -72,11 +72,10 @@ export async function runPipeline(deps: PipelineDeps): Promise<void> {
 
   for (const account of accounts) {
     try {
-      const emails = await poller.pollAccount(account, seenIds);
+      const { emails, historyId } = await poller.pollAccount(account, seenIds);
       const filtered = emails.filter((e) => !digest.has(e.id));
       allNewEmails.push(...filtered);
-      const currentState = poller.getAccountState(account);
-      poller.recordSuccess(account, currentState?.historyId ?? "");
+      poller.recordSuccess(account, historyId ?? poller.getAccountState(account)?.historyId ?? "");
       logger.info(`betteremail: ${account} — ${emails.length} fetched, ${filtered.length} new`);
     } catch (err) {
       const failures = poller.recordFailure(account);
