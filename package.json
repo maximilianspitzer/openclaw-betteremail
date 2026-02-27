@@ -3,6 +3,10 @@
   "version": "0.2.0",
   "description": "Email digest plugin for OpenClaw — polls Gmail, deduplicates, classifies importance, exposes digest to agent",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maximilianspitzer/openclaw-betteremail"
+  },
   "type": "module",
   "openclaw": {
     "extensions": ["./src/index.ts"]
