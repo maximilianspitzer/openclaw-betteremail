@@ -81,7 +81,10 @@ export default {
       }
     })();
 
-    api.registerTool(createGetEmailDigestTool(digest, initPromise));
+    api.registerTool(createGetEmailDigestTool(digest, initPromise, {
+      accounts: config.accounts,
+      checkThreadForReply: (threadId, account) => poller.checkThreadForReply(threadId, account),
+    }));
     api.registerTool(createMarkEmailHandledTool(digest, initPromise));
     api.registerTool(createDeferEmailTool(digest, initPromise));
     api.registerTool(createDismissEmailTool(digest, initPromise));

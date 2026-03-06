@@ -430,6 +430,49 @@ describe("get_email_digest", () => {
     expect(entries).toHaveLength(25);
   });
 
+  it("auto-resolves owner-replied entries before returning", async () => {
+    digest.add(makeEntry({ id: "msg-1", threadId: "thread-1", account: "me@test.com", from: "sender@example.com", status: "new" }));
+    digest.add(makeEntry({ id: "msg-2", threadId: "thread-2", account: "me@test.com", from: "other@example.com", status: "new" }));
+
+    const toolWithResolve = createGetEmailDigestTool(digest, undefined, {
+      accounts: ["me@test.com"],
+      checkThreadForReply: async (threadId) => threadId === "thread-1",
+    });
+
+    const result = await toolWithResolve.execute("call-1", {});
+    const parsed = JSON.parse(textContent(result));
+    const allEntries = Object.values(parsed.emails).flat() as any[];
+    // msg-1 should have been auto-resolved, only msg-2 remains
+    expect(allEntries).toHaveLength(1);
+    expect(allEntries[0].messageId).toBe("msg-2");
+    expect(digest.get("msg-1")?.status).toBe("handled");
+  });
+
+  it("skips auto-resolve for self-sent emails", async () => {
+    digest.add(makeEntry({ id: "msg-1", threadId: "thread-1", account: "me@test.com", from: "me@test.com", status: "new" }));
+
+    const checkFn = async () => true;
+    const toolWithResolve = createGetEmailDigestTool(digest, undefined, {
+      accounts: ["me@test.com"],
+      checkThreadForReply: checkFn,
+    });
+
+    const result = await toolWithResolve.execute("call-1", {});
+    const parsed = JSON.parse(textContent(result));
+    const allEntries = Object.values(parsed.emails).flat() as any[];
+    // Self-sent email should not be checked, still shows as new
+    expect(allEntries).toHaveLength(1);
+  });
+
+  it("works without autoResolve deps", async () => {
+    digest.add(makeEntry({ id: "msg-1", status: "new" }));
+    const toolNoResolve = createGetEmailDigestTool(digest);
+    const result = await toolNoResolve.execute("call-1", {});
+    const parsed = JSON.parse(textContent(result));
+    const allEntries = Object.values(parsed.emails).flat() as any[];
+    expect(allEntries).toHaveLength(1);
+  });
+
   it("marks all entries surfaced even when limited", async () => {
     for (let i = 0; i < 25; i++) {
       digest.add(makeEntry({

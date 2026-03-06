@@ -3,7 +3,14 @@ import type { DigestManager } from "../digest.js";
 import type { DigestEntry } from "../types.js";
 import { formatAge } from "../utils.js";
 
-export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<void>) {
+export interface AutoResolveDeps {
+  accounts: string[];
+  checkThreadForReply: (threadId: string, account: string) => Promise<boolean>;
+}
+
+const AUTO_RESOLVE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<void>, autoResolve?: AutoResolveDeps) {
   return {
     name: "get_email_digest",
     label: "Get Email Digest",
@@ -36,6 +43,28 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
       const allowedStatuses = new Set(["new", "surfaced"]);
       if (includeDeferred) allowedStatuses.add("deferred");
       if (includeDismissed) allowedStatuses.add("dismissed");
+
+      // Auto-resolve: check active entries for owner replies before returning
+      if (autoResolve) {
+        const active = digest.getActiveEntries();
+        const toCheck = active.filter((entry) => {
+          const age = Date.now() - new Date(entry.firstSeenAt).getTime();
+          if (age > AUTO_RESOLVE_MAX_AGE_MS) return false;
+          const fromLower = entry.from.toLowerCase();
+          if (autoResolve.accounts.some(a => fromLower.includes(a.toLowerCase()))) return false;
+          return true;
+        });
+        for (const entry of toCheck) {
+          try {
+            const replied = await autoResolve.checkThreadForReply(entry.threadId, entry.account);
+            if (replied) {
+              digest.markHandled(entry.id);
+            }
+          } catch {
+            // Non-critical
+          }
+        }
+      }
 
       const entries = digest.getByStatus("all").filter((e: DigestEntry) => allowedStatuses.has(e.status));
 
