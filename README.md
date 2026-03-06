@@ -55,7 +55,7 @@ plugins:
 After installing, send the following message to your agent in the main session:
 
 ```
-Set up a cron job for the BetterEmail plugin. It should run during my work hours and check the email digest by calling get_email_digest, then triage what it finds — dismiss junk, defer what can wait, and tell me about anything important. Use `openclaw cron add` with a main-session system event. Pick a sensible schedule based on my timezone and work hours (check my preferences/config if unsure). Don't run it too often — every couple of hours during work hours is a good default. Make sure the cron expression avoids off-hours and weekends unless I've indicated otherwise.
+Set up a cron job for the BetterEmail plugin. It should run in an isolated session during my work hours — call get_email_digest, triage what it finds (dismiss junk, defer what can wait, mark handled what's done), and then notify me in the main session only if there's something important or actionable. Use `openclaw cron add` with isolated session mode and announce delivery to the main session. Pick a sensible schedule based on my timezone and work hours (check my preferences/config if unsure). Don't run it too often — every couple of hours during work hours is a good default. Make sure the cron expression avoids off-hours and weekends unless I've indicated otherwise.
 ```
 
 The agent will create a tailored cron job based on your setup. You can always adjust the schedule later with `openclaw cron list` and `openclaw cron remove`.
