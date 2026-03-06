@@ -302,7 +302,7 @@ describe("get_email_digest", () => {
     digest.add(makeEntry({ id: "msg-2", account: "b@test.com" }));
     const result = await tool.execute("call-1", {});
     const parsed = JSON.parse(textContent(result));
-    expect(Object.keys(parsed)).toHaveLength(2);
+    expect(Object.keys(parsed.emails)).toHaveLength(2);
   });
 
   it("defaults to new status filter", async () => {
@@ -310,7 +310,7 @@ describe("get_email_digest", () => {
     digest.add(makeEntry({ id: "msg-2", status: "handled" }));
     const result = await tool.execute("call-1", {});
     const parsed = JSON.parse(textContent(result));
-    const allEntries = Object.values(parsed).flat() as any[];
+    const allEntries = Object.values(parsed.emails).flat() as any[];
     expect(allEntries).toHaveLength(1);
     expect(allEntries[0].messageId).toBe("msg-1");
   });
@@ -319,7 +319,7 @@ describe("get_email_digest", () => {
     digest.add(makeEntry({ id: "msg-1", status: "new" }));
     const result = await tool.execute("call-1", {});
     const parsed = JSON.parse(textContent(result));
-    const entries = Object.values(parsed).flat() as any[];
+    const entries = Object.values(parsed.emails).flat() as any[];
     // The response should show "new", not "surfaced"
     expect(entries[0].status).toBe("new");
     // But the entry in the digest should now be "surfaced"
@@ -331,7 +331,7 @@ describe("get_email_digest", () => {
     digest.add(makeEntry({ id: "msg-2", account: "b@test.com" }));
     const result = await tool.execute("call-1", { account: "a@test.com" });
     const parsed = JSON.parse(textContent(result));
-    expect(Object.keys(parsed)).toEqual(["a@test.com"]);
+    expect(Object.keys(parsed.emails)).toEqual(["a@test.com"]);
   });
 
   it("returns error for invalid status", async () => {
@@ -343,7 +343,7 @@ describe("get_email_digest", () => {
     digest.add(makeEntry({ status: "surfaced" }));
     const result = await tool.execute("call-1", { status: "surfaced" });
     const parsed = JSON.parse(textContent(result));
-    const entries = Object.values(parsed).flat() as any[];
+    const entries = Object.values(parsed.emails).flat() as any[];
     expect(entries).toHaveLength(1);
   });
 
@@ -352,8 +352,81 @@ describe("get_email_digest", () => {
     // Non-string status should default to "new"
     const result = await tool.execute("call-1", { status: 42 });
     const parsed = JSON.parse(textContent(result));
-    const entries = Object.values(parsed).flat() as any[];
+    const entries = Object.values(parsed.emails).flat() as any[];
     expect(entries).toHaveLength(1);
+  });
+
+  it("truncates body to 500 chars", async () => {
+    const longBody = "a".repeat(600);
+    digest.add(makeEntry({ id: "msg-long", body: longBody }));
+    const result = await tool.execute("call-1", {});
+    const parsed = JSON.parse(textContent(result));
+    const entries = Object.values(parsed.emails ?? parsed).flat() as any[];
+    const entry = entries.find((e: any) => e.messageId === "msg-long");
+    expect(entry.body.length).toBeLessThanOrEqual(501); // 500 chars + ellipsis char
+    expect(entry.body.endsWith("\u2026")).toBe(true);
+  });
+
+  it("respects limit parameter", async () => {
+    for (let i = 0; i < 25; i++) {
+      digest.add(makeEntry({
+        id: `msg-${i}`,
+        date: new Date(2026, 0, 1, 0, i).toISOString(),
+      }));
+    }
+    const result = await tool.execute("call-1", { limit: 10 });
+    const parsed = JSON.parse(textContent(result));
+    expect(parsed.total).toBe(25);
+    expect(parsed.showing).toBe(10);
+    expect(parsed.hasMore).toBe(true);
+    const entries = Object.values(parsed.emails).flat() as any[];
+    expect(entries).toHaveLength(10);
+  });
+
+  it("defaults to limit 20", async () => {
+    for (let i = 0; i < 25; i++) {
+      digest.add(makeEntry({
+        id: `msg-${i}`,
+        date: new Date(2026, 0, 1, 0, i).toISOString(),
+      }));
+    }
+    const result = await tool.execute("call-1", {});
+    const parsed = JSON.parse(textContent(result));
+    expect(parsed.total).toBe(25);
+    expect(parsed.showing).toBe(20);
+    expect(parsed.hasMore).toBe(true);
+    const entries = Object.values(parsed.emails).flat() as any[];
+    expect(entries).toHaveLength(20);
+  });
+
+  it("limit 0 returns all", async () => {
+    for (let i = 0; i < 25; i++) {
+      digest.add(makeEntry({
+        id: `msg-${i}`,
+        date: new Date(2026, 0, 1, 0, i).toISOString(),
+      }));
+    }
+    const result = await tool.execute("call-1", { limit: 0 });
+    const parsed = JSON.parse(textContent(result));
+    expect(parsed.total).toBe(25);
+    expect(parsed.showing).toBe(25);
+    expect(parsed.hasMore).toBe(false);
+    const entries = Object.values(parsed.emails).flat() as any[];
+    expect(entries).toHaveLength(25);
+  });
+
+  it("marks all entries surfaced even when limited", async () => {
+    for (let i = 0; i < 25; i++) {
+      digest.add(makeEntry({
+        id: `msg-${i}`,
+        status: "new",
+        date: new Date(2026, 0, 1, 0, i).toISOString(),
+      }));
+    }
+    await tool.execute("call-1", { limit: 5 });
+    for (let i = 0; i < 25; i++) {
+      expect(digest.get(`msg-${i}`)?.status).toBe("surfaced");
+    }
   });
 });
 
@@ -393,7 +466,7 @@ describe("tool init guard", () => {
     const result = await resultPromise;
     expect(resolved).toBe(true);
     const parsed = JSON.parse(textContent(result));
-    const entries = Object.values(parsed).flat() as any[];
+    const entries = Object.values(parsed.emails).flat() as any[];
     expect(entries).toHaveLength(1);
   });
 
@@ -424,7 +497,7 @@ describe("tool init guard", () => {
     digest.add(makeEntry({ status: "new" }));
     const result = await tool.execute("call-1", {});
     const parsed = JSON.parse(textContent(result));
-    const entries = Object.values(parsed).flat() as any[];
+    const entries = Object.values(parsed.emails).flat() as any[];
     expect(entries).toHaveLength(1);
   });
 });

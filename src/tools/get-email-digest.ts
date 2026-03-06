@@ -10,7 +10,8 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
     description:
       "Get current email digest — unresolved emails from all Gmail accounts. " +
       "Returns emails grouped by account with status and age. " +
-      "Call this to check for new emails or review pending items.",
+      "Call this to check for new emails or review pending items. " +
+      "Body is truncated to 500 chars; use status 'all' with a specific account to review full emails.",
     parameters: Type.Object({
       status: Type.Optional(
         Type.String({
@@ -19,6 +20,9 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
       ),
       account: Type.Optional(
         Type.String({ description: "Filter by account email address" }),
+      ),
+      limit: Type.Optional(
+        Type.Number({ description: "Max emails to return (default 20). Use 0 for all." }),
       ),
     }),
     async execute(_id: string, params: Record<string, unknown>) {
@@ -29,6 +33,7 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
         return { content: [{ type: "text" as const, text: `Error: status must be one of: ${validStatuses.join(", ")}` }] };
       }
       const account = typeof params.account === "string" ? params.account : undefined;
+      const limit = typeof params.limit === "number" && params.limit >= 0 ? params.limit : 20;
 
       let grouped = digest.getGroupedByAccount(status);
 
@@ -36,22 +41,33 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
         grouped = { [account]: grouped[account] ?? [] };
       }
 
-      // Build response first (while status is still "new")
+      // Flatten all entries, sort by date descending (newest first)
+      const allEntries = Object.entries(grouped).flatMap(([acc, entries]) =>
+        entries.map((e) => ({ account: acc, entry: e })),
+      );
+      allEntries.sort((a, b) => new Date(b.entry.date).getTime() - new Date(a.entry.date).getTime());
+
+      const total = allEntries.length;
+      const limited = limit === 0 ? allEntries : allEntries.slice(0, limit);
+      const showing = limited.length;
+
+      // Build response from limited entries, re-grouped by account
       const summary: Record<string, unknown[]> = {};
-      for (const [acc, entries] of Object.entries(grouped)) {
-        summary[acc] = entries.map((e) => ({
+      for (const { account: acc, entry: e } of limited) {
+        if (!summary[acc]) summary[acc] = [];
+        summary[acc].push({
           messageId: e.id,
           from: e.from,
           subject: e.subject,
           status: e.status,
           date: e.date,
           age: formatAge(e.firstSeenAt),
-          body: e.body,
+          body: e.body.length > 500 ? e.body.slice(0, 500) + "\u2026" : e.body,
           deferredUntil: e.deferredUntil ?? undefined,
-        }));
+        });
       }
 
-      // THEN mark as surfaced
+      // Mark ALL matching entries as surfaced (not just limited ones)
       for (const entries of Object.values(grouped)) {
         for (const entry of entries) {
           if (entry.status === "new") {
@@ -62,8 +78,15 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
 
       await digest.save();
 
+      const response = {
+        total,
+        showing,
+        hasMore: showing < total,
+        emails: summary,
+      };
+
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(response, null, 2) }],
       };
     },
   };
