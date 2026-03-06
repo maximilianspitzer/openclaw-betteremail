@@ -10,7 +10,7 @@ An OpenClaw plugin that polls Gmail, classifies emails by importance, and expose
 ## Install
 
 ```bash
-openclaw plugin add @better_openclaw/betteremail
+openclaw plugins add @better_openclaw/betteremail
 ```
 
 ## Configure
