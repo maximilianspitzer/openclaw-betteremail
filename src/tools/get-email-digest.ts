@@ -8,7 +8,7 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
     name: "get_email_digest",
     label: "Get Email Digest",
     description:
-      "Get current email digest — unresolved important emails from all Gmail accounts. " +
+      "Get current email digest — unresolved emails from all Gmail accounts. " +
       "Returns emails grouped by account with status and age. " +
       "Call this to check for new emails or review pending items.",
     parameters: Type.Object({
