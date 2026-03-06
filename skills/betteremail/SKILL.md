@@ -35,6 +35,25 @@ During heartbeats, follow this pattern:
 5. **Can wait** — `defer_email` for later.
 6. **Already dealt with** — `mark_email_handled`.
 
+## Triage Heuristics
+
+Use these signals to decide what matters:
+
+**Likely important:**
+- From known contacts, colleagues, or people the user has corresponded with
+- Contains the user's name, mentions a deadline, or requests action
+- Calendar invites, meeting changes, travel confirmations
+- Financial/legal content (invoices, contracts, bank alerts)
+- Replies in threads the user participated in
+
+**Likely dismissible:**
+- Marketing, newsletters, promotional emails
+- Automated notifications from services (GitHub, Jira, etc.) unless user has expressed interest
+- No-reply senders
+- Mass emails (large CC/BCC lists)
+
+When unsure, surface it to the user rather than dismissing. You can always dismiss later, but you can't un-dismiss.
+
 ## Guidelines
 
 - Call `get_email_digest` during heartbeats and when the user asks about email.
