@@ -15,9 +15,6 @@ function makeEntry(overrides: Partial<DigestEntry> = {}): DigestEntry {
     subject: "Test email",
     date: "2026-02-26T10:00:00Z",
     body: "Hello world",
-    importance: "high",
-    reason: "urgent matter",
-    notify: true,
     status: "new",
     firstSeenAt: new Date().toISOString(),
     ...overrides,
@@ -58,20 +55,21 @@ describe("createEmailsCommandHandler", () => {
     expect(result.text).toContain("Surfaced email");
   });
 
-  it("shows [HIGH] prefix for high importance", () => {
-    digest.add(makeEntry({ importance: "high", subject: "Urgent" }));
+  it("shows subject and sender for active entries", () => {
+    digest.add(makeEntry({ subject: "Urgent" }));
 
     const handler = createEmailsCommandHandler(digest);
     const result = handler();
-    expect(result.text).toContain("[HIGH] Urgent");
+    expect(result.text).toContain("Urgent from sender@example.com");
   });
 
-  it("shows [MED] prefix for medium importance", () => {
-    digest.add(makeEntry({ importance: "medium", subject: "Normal" }));
+  it("shows age for active entries", () => {
+    digest.add(makeEntry({ subject: "Normal" }));
 
     const handler = createEmailsCommandHandler(digest);
     const result = handler();
-    expect(result.text).toContain("[MED]  Normal");
+    expect(result.text).toContain("Normal from sender@example.com");
+    expect(result.text).toMatch(/\d+m ago/);
   });
 
   it("shows deferred count", () => {

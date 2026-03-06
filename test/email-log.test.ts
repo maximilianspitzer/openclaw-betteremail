@@ -37,9 +37,6 @@ describe("EmailLog", () => {
   it("appends and reads entries", async () => {
     const entry: EmailLogEntry = {
       email: makeTrimmedEmail(),
-      importance: "high",
-      reason: "urgent",
-      notify: true,
       timestamp: Date.now() / 1000,
     };
     await log.append(entry);
@@ -57,9 +54,6 @@ describe("EmailLog", () => {
     for (let i = 0; i < 5; i++) {
       await log.append({
         email: makeTrimmedEmail({ id: `msg-${i}` }),
-        importance: "low",
-        reason: "test",
-        notify: false,
         timestamp: i < 3 ? 1000 : Date.now() / 1000,
       });
     }
@@ -73,9 +67,6 @@ describe("EmailLog", () => {
     for (let i = 0; i < 5; i++) {
       await log.append({
         email: makeTrimmedEmail({ id: `msg-${i}` }),
-        importance: "low",
-        reason: "test",
-        notify: false,
         timestamp: Date.now() / 1000,
       });
     }
