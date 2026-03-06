@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { DigestManager } from "../src/digest.js";
 import { EmailLog } from "../src/email-log.js";
 import { runPipeline } from "../src/pipeline.js";
-import type { TrimmedEmail, ClassificationResult } from "../src/types.js";
+import type { TrimmedEmail } from "../src/types.js";
 
 describe("Integration: full pipeline cycle", () => {
   let tmpDir: string;
@@ -36,13 +36,6 @@ describe("Integration: full pipeline cycle", () => {
       },
     ];
 
-    const mockClassifications: ClassificationResult[] = [
-      { id: "msg-urgent", importance: "high", reason: "Contract deadline today", notify: true },
-      { id: "msg-spam", importance: "low", reason: "Marketing email", notify: false },
-    ];
-
-    const pushes: string[] = [];
-
     await runPipeline({
       accounts: ["work@co.com", "personal@gmail.com"],
       poller: {
@@ -56,37 +49,25 @@ describe("Integration: full pipeline cycle", () => {
         getAccountState: vi.fn().mockReturnValue(undefined),
         checkThreadForReply: vi.fn().mockResolvedValue(false),
       },
-      classifier: {
-        classify: vi.fn().mockResolvedValue(mockClassifications),
-      },
       digest,
       emailLog,
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      runCommand: vi.fn().mockImplementation(async (args) => {
-        if (args.includes("--deliver")) {
-          pushes.push(args[args.indexOf("--message") + 1]);
-        }
-        return { code: 0 };
-      }),
+      runCommand: vi.fn().mockResolvedValue({ code: 0 }),
       consecutiveFailuresBeforeAlert: 3,
     });
 
-    // Urgent email should be in digest
+    // Both emails should be in digest
     const urgent = digest.get("msg-urgent");
     expect(urgent).toBeDefined();
-    expect(urgent?.importance).toBe("high");
     expect(urgent?.status).toBe("new");
 
-    // Spam should NOT be in digest
-    expect(digest.get("msg-spam")).toBeUndefined();
+    const spam = digest.get("msg-spam");
+    expect(spam).toBeDefined();
+    expect(spam?.status).toBe("new");
 
     // Both should be in email log
     const allLogs = await emailLog.readAll();
     expect(allLogs).toHaveLength(2);
-
-    // Push should have been sent for urgent
-    expect(pushes).toHaveLength(1);
-    expect(pushes[0]).toContain("Contract needs signature TODAY");
   });
 
   it("marks emails as handled and they don't reappear", async () => {
@@ -96,8 +77,7 @@ describe("Integration: full pipeline cycle", () => {
     digest.add({
       id: "msg-1", threadId: "t-1", account: "work@co.com",
       from: "boss@co.com", subject: "Review doc", date: "2026-02-26T10:00:00Z",
-      body: "Please review", importance: "high", reason: "urgent",
-      notify: true, status: "surfaced", firstSeenAt: new Date().toISOString(),
+      body: "Please review", status: "surfaced", firstSeenAt: new Date().toISOString(),
     });
 
     digest.markHandled("msg-1");
@@ -120,7 +100,6 @@ describe("Integration: full pipeline cycle", () => {
     await runPipeline({
       accounts: ["work@co.com"],
       poller: mockPoller,
-      classifier: { classify: vi.fn().mockResolvedValue([]) },
       digest,
       emailLog: new EmailLog(tmpDir),
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -139,8 +118,7 @@ describe("Integration: full pipeline cycle", () => {
     digest.add({
       id: "msg-defer", threadId: "t-1", account: "work@co.com",
       from: "client@co.com", subject: "Invoice", date: "2026-02-26T10:00:00Z",
-      body: "Please pay", importance: "high", reason: "financial",
-      notify: true, status: "surfaced", firstSeenAt: new Date().toISOString(),
+      body: "Please pay", status: "surfaced", firstSeenAt: new Date().toISOString(),
     });
 
     // Defer for 0 minutes (so it expires immediately)
@@ -161,7 +139,6 @@ describe("Integration: full pipeline cycle", () => {
         getAccountState: vi.fn().mockReturnValue(undefined),
         checkThreadForReply: vi.fn().mockResolvedValue(false),
       },
-      classifier: { classify: vi.fn().mockResolvedValue([]) },
       digest,
       emailLog: new EmailLog(tmpDir),
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
