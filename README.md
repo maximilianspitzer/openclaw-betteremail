@@ -52,13 +52,13 @@ plugins:
 
 ## Agent setup
 
-After installing, add the following to your agent's `heartbeat.md` so it checks email on every heartbeat:
+After installing, send the following message to your agent in the main session:
 
 ```
-Check email digest: call get_email_digest to triage new emails. Dismiss junk, defer what can wait, and tell the user about anything important.
+Set up a cron job for the BetterEmail plugin. It should run during my work hours and check the email digest by calling get_email_digest, then triage what it finds — dismiss junk, defer what can wait, and tell me about anything important. Use `openclaw cron add` with a main-session system event. Pick a sensible schedule based on my timezone and work hours (check my preferences/config if unsure). Don't run it too often — every couple of hours during work hours is a good default. Make sure the cron expression avoids off-hours and weekends unless I've indicated otherwise.
 ```
 
-Without this, the agent won't know to check for new emails unless asked.
+The agent will create a tailored cron job based on your setup. You can always adjust the schedule later with `openclaw cron list` and `openclaw cron remove`.
 
 ## How it works
 

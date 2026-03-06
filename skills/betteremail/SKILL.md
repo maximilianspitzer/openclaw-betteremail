@@ -56,7 +56,7 @@ When unsure, surface it to the user rather than dismissing. You can always dismi
 
 ## Guidelines
 
-- Call `get_email_digest` during heartbeats and when the user asks about email.
+- Call `get_email_digest` when triggered by the email triage cron job or when the user asks about email.
 - Don't call it repeatedly in a short window — the digest only updates on poll cycles.
 - After reading the digest, emails move from "new" to "surfaced". This is automatic.
 - Deferred emails re-enter the digest as "new" after their timer expires.
