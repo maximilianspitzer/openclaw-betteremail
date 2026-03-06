@@ -1,6 +1,6 @@
 {
   "name": "@better_openclaw/betteremail",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Email digest plugin for OpenClaw — polls Gmail, deduplicates, tracks state, exposes digest to agent for triage",
   "license": "AGPL-3.0-only",
   "repository": {
