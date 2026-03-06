@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { DigestManager } from "../digest.js";
 
-export function createDeferEmailTool(digest: DigestManager) {
+export function createDeferEmailTool(digest: DigestManager, ready?: Promise<void>) {
   return {
     name: "defer_email",
     label: "Defer Email",
@@ -13,6 +13,7 @@ export function createDeferEmailTool(digest: DigestManager) {
       minutes: Type.Number({ description: "Minutes until the email re-surfaces in the digest" }),
     }),
     async execute(_id: string, params: Record<string, unknown>) {
+      if (ready) await ready;
       if (typeof params.messageId !== "string" || !params.messageId) {
         return { content: [{ type: "text" as const, text: "Error: messageId must be a non-empty string." }] };
       }

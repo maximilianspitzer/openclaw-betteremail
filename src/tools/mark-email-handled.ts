@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { DigestManager } from "../digest.js";
 
-export function createMarkEmailHandledTool(digest: DigestManager) {
+export function createMarkEmailHandledTool(digest: DigestManager, ready?: Promise<void>) {
   return {
     name: "mark_email_handled",
     label: "Mark Email Handled",
@@ -10,6 +10,7 @@ export function createMarkEmailHandledTool(digest: DigestManager) {
       messageId: Type.String({ description: "The message ID to mark as handled" }),
     }),
     async execute(_id: string, params: Record<string, unknown>) {
+      if (ready) await ready;
       if (typeof params.messageId !== "string" || !params.messageId) {
         return { content: [{ type: "text" as const, text: "Error: messageId must be a non-empty string." }] };
       }

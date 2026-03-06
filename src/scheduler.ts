@@ -39,7 +39,7 @@ export class Scheduler {
   start(): void {
     if (this.running) return;
     this.running = true;
-    this.scheduleNext();
+    void this.tick();
   }
 
   stop(): void {
@@ -50,16 +50,19 @@ export class Scheduler {
     }
   }
 
+  private async tick(): Promise<void> {
+    if (!this.running) return;
+    try {
+      await this.onTick();
+    } catch {
+      // Pipeline handles its own errors — scheduler just keeps going
+    }
+    this.scheduleNext();
+  }
+
   private scheduleNext(): void {
     if (!this.running) return;
     const interval = getIntervalMs(new Date(), this.intervals, this.workConfig);
-    this.timer = setTimeout(async () => {
-      try {
-        await this.onTick();
-      } catch {
-        // Pipeline handles its own errors — scheduler just keeps going
-      }
-      this.scheduleNext();
-    }, interval);
+    this.timer = setTimeout(() => void this.tick(), interval);
   }
 }

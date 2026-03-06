@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { DigestManager } from "../digest.js";
 
-export function createDismissEmailTool(digest: DigestManager) {
+export function createDismissEmailTool(digest: DigestManager, ready?: Promise<void>) {
   return {
     name: "dismiss_email",
     label: "Dismiss Email",
@@ -11,6 +11,7 @@ export function createDismissEmailTool(digest: DigestManager) {
       reason: Type.Optional(Type.String({ description: "Optional reason for dismissing" })),
     }),
     async execute(_id: string, params: Record<string, unknown>) {
+      if (ready) await ready;
       if (typeof params.messageId !== "string" || !params.messageId) {
         return { content: [{ type: "text" as const, text: "Error: messageId must be a non-empty string." }] };
       }

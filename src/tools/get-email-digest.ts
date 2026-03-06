@@ -3,7 +3,7 @@ import type { DigestManager } from "../digest.js";
 import type { DigestStatus } from "../types.js";
 import { formatAge } from "../utils.js";
 
-export function createGetEmailDigestTool(digest: DigestManager) {
+export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<void>) {
   return {
     name: "get_email_digest",
     label: "Get Email Digest",
@@ -22,6 +22,7 @@ export function createGetEmailDigestTool(digest: DigestManager) {
       ),
     }),
     async execute(_id: string, params: Record<string, unknown>) {
+      if (ready) await ready;
       const validStatuses = ["new", "surfaced", "deferred", "all"];
       const status = (typeof params.status === "string" ? params.status : "new") as DigestStatus | "all";
       if (!validStatuses.includes(status)) {

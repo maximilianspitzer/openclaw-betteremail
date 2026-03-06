@@ -359,3 +359,75 @@ describe("get_email_digest", () => {
     expect(entries).toHaveLength(1);
   });
 });
+
+describe("tool init guard", () => {
+  let tmpDir: string;
+  let digest: DigestManager;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "tools-test-"));
+    digest = new DigestManager(tmpDir);
+    await digest.load();
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it("get_email_digest waits for ready promise before executing", async () => {
+    let resolveReady!: () => void;
+    const ready = new Promise<void>((r) => { resolveReady = r; });
+
+    const tool = createGetEmailDigestTool(digest, ready);
+    digest.add(makeEntry({ status: "new" }));
+
+    let resolved = false;
+    const resultPromise = tool.execute("call-1", {}).then((r) => {
+      resolved = true;
+      return r;
+    });
+
+    // Should not have resolved yet — still waiting for init
+    await new Promise((r) => setTimeout(r, 10));
+    expect(resolved).toBe(false);
+
+    // Complete init
+    resolveReady();
+    const result = await resultPromise;
+    expect(resolved).toBe(true);
+    const parsed = JSON.parse(textContent(result));
+    const entries = Object.values(parsed).flat() as any[];
+    expect(entries).toHaveLength(1);
+  });
+
+  it("mark_email_handled waits for ready promise before executing", async () => {
+    let resolveReady!: () => void;
+    const ready = new Promise<void>((r) => { resolveReady = r; });
+
+    const tool = createMarkEmailHandledTool(digest, ready);
+    digest.add(makeEntry({ status: "new" }));
+
+    let resolved = false;
+    const resultPromise = tool.execute("call-1", { messageId: "msg-1" }).then((r) => {
+      resolved = true;
+      return r;
+    });
+
+    await new Promise((r) => setTimeout(r, 10));
+    expect(resolved).toBe(false);
+
+    resolveReady();
+    const result = await resultPromise;
+    expect(resolved).toBe(true);
+    expect(textContent(result)).toContain("Marked");
+  });
+
+  it("tools work immediately when no ready promise is provided", async () => {
+    const tool = createGetEmailDigestTool(digest);
+    digest.add(makeEntry({ status: "new" }));
+    const result = await tool.execute("call-1", {});
+    const parsed = JSON.parse(textContent(result));
+    const entries = Object.values(parsed).flat() as any[];
+    expect(entries).toHaveLength(1);
+  });
+});
