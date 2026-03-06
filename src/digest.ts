@@ -120,6 +120,21 @@ export class DigestManager {
     return pruned;
   }
 
+  expireStale(maxAgeDays: number): number {
+    const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60_000;
+    let count = 0;
+    for (const entry of Object.values(this.state.entries)) {
+      if (entry.status !== "new" && entry.status !== "surfaced") continue;
+      if (new Date(entry.firstSeenAt).getTime() < cutoff) {
+        entry.status = "dismissed";
+        entry.resolvedAt = new Date().toISOString();
+        entry.dismissReason = `auto-expired: not triaged within ${maxAgeDays} days`;
+        count++;
+      }
+    }
+    return count;
+  }
+
   expireDeferrals(): DigestEntry[] {
     const now = new Date();
     const expired: DigestEntry[] = [];

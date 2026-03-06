@@ -19,6 +19,7 @@ export interface PipelineDeps {
     getActiveEntries(): DigestEntry[];
     expireDeferrals(): DigestEntry[];
     prune(maxAgeDays: number): number;
+    expireStale(maxAgeDays: number): number;
     markHandled(id: string): void;
   };
   emailLog: {
@@ -34,6 +35,23 @@ export interface PipelineDeps {
   consecutiveFailuresBeforeAlert: number;
 }
 
+async function parallelWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  const queue = [...items];
+  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
+    while (queue.length > 0) {
+      const item = queue.shift()!;
+      await fn(item);
+    }
+  });
+  await Promise.all(workers);
+}
+
+const AUTO_RESOLVE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export async function runPipeline(deps: PipelineDeps): Promise<void> {
   const { accounts, poller, digest, emailLog, logger } = deps;
 
@@ -45,6 +63,11 @@ export async function runPipeline(deps: PipelineDeps): Promise<void> {
     logger.info(`betteremail: pruned ${pruned} resolved email(s) older than 30 days`);
   }
 
+  const staleExpired = digest.expireStale(14);
+  if (staleExpired > 0) {
+    logger.info(`betteremail: auto-expired ${staleExpired} untriaged email(s) older than 14 days`);
+  }
+
   const expired = digest.expireDeferrals();
   if (expired.length > 0) {
     logger.info(`betteremail: ${expired.length} deferred email(s) re-entered digest`);
@@ -52,7 +75,15 @@ export async function runPipeline(deps: PipelineDeps): Promise<void> {
 
   // Auto-resolve: re-check active threads for owner replies
   const activeEntries = digest.getActiveEntries();
-  for (const entry of activeEntries) {
+  const entriesToCheck = activeEntries.filter((entry) => {
+    const age = Date.now() - new Date(entry.firstSeenAt).getTime();
+    if (age > AUTO_RESOLVE_MAX_AGE_MS) return false;
+    const fromLower = entry.from.toLowerCase();
+    if (accounts.some(a => fromLower.includes(a.toLowerCase()))) return false;
+    return true;
+  });
+
+  await parallelWithConcurrency(entriesToCheck, 5, async (entry) => {
     try {
       const replied = await poller.checkThreadForReply(entry.threadId, entry.account);
       if (replied) {
@@ -62,7 +93,7 @@ export async function runPipeline(deps: PipelineDeps): Promise<void> {
     } catch {
       // Non-critical — will retry next cycle
     }
-  }
+  });
 
   // Build seen IDs set from email log
   const allLogEntries = await emailLog.readAll();

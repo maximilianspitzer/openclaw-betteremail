@@ -176,6 +176,50 @@ describe("DigestManager", () => {
     expect(digest.has("msg-2")).toBe(true);
   });
 
+  it("expireStale dismisses 'new' entries older than threshold", () => {
+    const old = new Date(Date.now() - 20 * 24 * 60 * 60_000).toISOString();
+    digest.add(makeEntry({ id: "old-new", status: "new", firstSeenAt: old }));
+    digest.expireStale(14);
+    expect(digest.get("old-new")?.status).toBe("dismissed");
+  });
+
+  it("expireStale dismisses 'surfaced' entries older than threshold", () => {
+    const old = new Date(Date.now() - 20 * 24 * 60 * 60_000).toISOString();
+    digest.add(makeEntry({ id: "old-surfaced", status: "surfaced", firstSeenAt: old }));
+    digest.expireStale(14);
+    expect(digest.get("old-surfaced")?.status).toBe("dismissed");
+  });
+
+  it("expireStale does NOT touch deferred, handled, or dismissed entries", () => {
+    const old = new Date(Date.now() - 20 * 24 * 60 * 60_000).toISOString();
+    digest.add(makeEntry({ id: "e-deferred", status: "deferred", firstSeenAt: old }));
+    digest.add(makeEntry({ id: "e-handled", status: "handled", firstSeenAt: old }));
+    digest.add(makeEntry({ id: "e-dismissed", status: "dismissed", firstSeenAt: old }));
+    digest.expireStale(14);
+    expect(digest.get("e-deferred")?.status).toBe("deferred");
+    expect(digest.get("e-handled")?.status).toBe("handled");
+    expect(digest.get("e-dismissed")?.status).toBe("dismissed");
+  });
+
+  it("expireStale sets correct dismissReason and resolvedAt", () => {
+    const old = new Date(Date.now() - 20 * 24 * 60 * 60_000).toISOString();
+    digest.add(makeEntry({ id: "old-entry", status: "new", firstSeenAt: old }));
+    digest.expireStale(14);
+    const entry = digest.get("old-entry");
+    expect(entry?.dismissReason).toBe("auto-expired: not triaged within 14 days");
+    expect(entry?.resolvedAt).toBeDefined();
+  });
+
+  it("expireStale returns count of expired entries", () => {
+    const old = new Date(Date.now() - 20 * 24 * 60 * 60_000).toISOString();
+    const recent = new Date(Date.now() - 5 * 24 * 60 * 60_000).toISOString();
+    digest.add(makeEntry({ id: "old-1", status: "new", firstSeenAt: old }));
+    digest.add(makeEntry({ id: "old-2", status: "surfaced", firstSeenAt: old }));
+    digest.add(makeEntry({ id: "recent-1", status: "new", firstSeenAt: recent }));
+    const count = digest.expireStale(14);
+    expect(count).toBe(2);
+  });
+
   it("prune never removes active entries regardless of age", () => {
     const old = new Date(Date.now() - 90 * 24 * 60 * 60_000).toISOString();
     digest.add(makeEntry({ id: "msg-1", status: "new", firstSeenAt: old }));

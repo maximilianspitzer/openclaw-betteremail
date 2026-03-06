@@ -31,6 +31,7 @@ describe("runPipeline", () => {
       expireDeferrals: vi.fn().mockReturnValue([]),
       prune: vi.fn().mockReturnValue(0),
       markHandled: vi.fn(),
+      expireStale: vi.fn().mockReturnValue(0),
     };
 
     mockEmailLog = {
@@ -175,7 +176,7 @@ describe("runPipeline", () => {
   it("auto-resolves active threads when owner replied", async () => {
     mockPoller.pollAccount.mockResolvedValue({ emails: [], historyId: undefined });
     mockDigest.getActiveEntries.mockReturnValue([
-      { id: "msg-active", threadId: "t-active", account: "test@gmail.com", status: "new" },
+      { id: "msg-active", threadId: "t-active", account: "test@gmail.com", from: "external@other.com", status: "new", firstSeenAt: new Date().toISOString() },
     ]);
     mockPoller.checkThreadForReply.mockResolvedValue(true);
 
@@ -191,6 +192,81 @@ describe("runPipeline", () => {
 
     expect(mockPoller.checkThreadForReply).toHaveBeenCalledWith("t-active", "test@gmail.com");
     expect(mockDigest.markHandled).toHaveBeenCalledWith("msg-active");
+  });
+
+  it("auto-resolve skips entries older than 7 days", async () => {
+    mockPoller.pollAccount.mockResolvedValue({ emails: [], historyId: undefined });
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    mockDigest.getActiveEntries.mockReturnValue([
+      { id: "old-msg", threadId: "t-old", account: "test@gmail.com", from: "sender@test.com", status: "new", firstSeenAt: eightDaysAgo },
+    ]);
+
+    await runPipeline({
+      accounts: ["test@gmail.com"],
+      poller: mockPoller,
+      digest: mockDigest,
+      emailLog: mockEmailLog,
+      logger: mockLogger,
+      runCommand: mockRunCommand,
+      consecutiveFailuresBeforeAlert: 3,
+    });
+
+    expect(mockPoller.checkThreadForReply).not.toHaveBeenCalled();
+  });
+
+  it("auto-resolve skips entries from owner accounts", async () => {
+    mockPoller.pollAccount.mockResolvedValue({ emails: [], historyId: undefined });
+    mockDigest.getActiveEntries.mockReturnValue([
+      { id: "self-msg", threadId: "t-self", account: "test@gmail.com", from: "test@gmail.com", status: "new", firstSeenAt: new Date().toISOString() },
+    ]);
+
+    await runPipeline({
+      accounts: ["test@gmail.com"],
+      poller: mockPoller,
+      digest: mockDigest,
+      emailLog: mockEmailLog,
+      logger: mockLogger,
+      runCommand: mockRunCommand,
+      consecutiveFailuresBeforeAlert: 3,
+    });
+
+    expect(mockPoller.checkThreadForReply).not.toHaveBeenCalled();
+  });
+
+  it("auto-resolve checks recent entries from external senders", async () => {
+    mockPoller.pollAccount.mockResolvedValue({ emails: [], historyId: undefined });
+    mockDigest.getActiveEntries.mockReturnValue([
+      { id: "recent-msg", threadId: "t-recent", account: "test@gmail.com", from: "external@other.com", status: "new", firstSeenAt: new Date().toISOString() },
+    ]);
+    mockPoller.checkThreadForReply.mockResolvedValue(false);
+
+    await runPipeline({
+      accounts: ["test@gmail.com"],
+      poller: mockPoller,
+      digest: mockDigest,
+      emailLog: mockEmailLog,
+      logger: mockLogger,
+      runCommand: mockRunCommand,
+      consecutiveFailuresBeforeAlert: 3,
+    });
+
+    expect(mockPoller.checkThreadForReply).toHaveBeenCalledWith("t-recent", "test@gmail.com");
+  });
+
+  it("calls digest.expireStale each cycle", async () => {
+    mockPoller.pollAccount.mockResolvedValue({ emails: [], historyId: undefined });
+
+    await runPipeline({
+      accounts: ["test@gmail.com"],
+      poller: mockPoller,
+      digest: mockDigest,
+      emailLog: mockEmailLog,
+      logger: mockLogger,
+      runCommand: mockRunCommand,
+      consecutiveFailuresBeforeAlert: 3,
+    });
+
+    expect(mockDigest.expireStale).toHaveBeenCalledWith(14);
   });
 
   it("alerts agent after consecutive failures exceed threshold", async () => {
