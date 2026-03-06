@@ -19,7 +19,7 @@ You have access to an email digest that polls the user's Gmail accounts and trac
 
 | Tool | When to use |
 |------|-------------|
-| `get_email_digest` | Check for new/pending emails. Defaults to "new" status. Use `status: "all"` to see everything. |
+| `get_email_digest` | Check for new/pending emails. Shows new + surfaced by default. Use `includeDeferred` or `includeDismissed` flags to also see those. |
 | `mark_email_handled` | After the user has dealt with an email or you've taken action on it. |
 | `defer_email` | User can't deal with it now (in a meeting, busy). Set minutes until it comes back. |
 | `dismiss_email` | Email is irrelevant. Optionally provide a reason so you remember why. |

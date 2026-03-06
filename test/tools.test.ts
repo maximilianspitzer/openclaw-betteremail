@@ -305,14 +305,53 @@ describe("get_email_digest", () => {
     expect(Object.keys(parsed.emails)).toHaveLength(2);
   });
 
-  it("defaults to new status filter", async () => {
+  it("defaults to new and surfaced only", async () => {
     digest.add(makeEntry({ id: "msg-1", status: "new" }));
-    digest.add(makeEntry({ id: "msg-2", status: "handled" }));
+    digest.add(makeEntry({ id: "msg-2", status: "surfaced" }));
+    digest.add(makeEntry({ id: "msg-3", status: "handled" }));
+    digest.add(makeEntry({ id: "msg-4", status: "dismissed" }));
+    digest.add(makeEntry({ id: "msg-5", status: "deferred" }));
     const result = await tool.execute("call-1", {});
     const parsed = JSON.parse(textContent(result));
     const allEntries = Object.values(parsed.emails).flat() as any[];
-    expect(allEntries).toHaveLength(1);
-    expect(allEntries[0].messageId).toBe("msg-1");
+    expect(allEntries).toHaveLength(2);
+    const ids = allEntries.map((e: any) => e.messageId).sort();
+    expect(ids).toEqual(["msg-1", "msg-2"]);
+  });
+
+  it("includeDeferred shows deferred emails too", async () => {
+    digest.add(makeEntry({ id: "msg-1", status: "new" }));
+    digest.add(makeEntry({ id: "msg-2", status: "deferred" }));
+    digest.add(makeEntry({ id: "msg-3", status: "dismissed" }));
+    const result = await tool.execute("call-1", { includeDeferred: true });
+    const parsed = JSON.parse(textContent(result));
+    const allEntries = Object.values(parsed.emails).flat() as any[];
+    expect(allEntries).toHaveLength(2);
+    const ids = allEntries.map((e: any) => e.messageId).sort();
+    expect(ids).toEqual(["msg-1", "msg-2"]);
+  });
+
+  it("includeDismissed shows dismissed emails too", async () => {
+    digest.add(makeEntry({ id: "msg-1", status: "new" }));
+    digest.add(makeEntry({ id: "msg-2", status: "dismissed" }));
+    digest.add(makeEntry({ id: "msg-3", status: "deferred" }));
+    const result = await tool.execute("call-1", { includeDismissed: true });
+    const parsed = JSON.parse(textContent(result));
+    const allEntries = Object.values(parsed.emails).flat() as any[];
+    expect(allEntries).toHaveLength(2);
+    const ids = allEntries.map((e: any) => e.messageId).sort();
+    expect(ids).toEqual(["msg-1", "msg-2"]);
+  });
+
+  it("both flags shows all non-handled emails", async () => {
+    digest.add(makeEntry({ id: "msg-1", status: "new" }));
+    digest.add(makeEntry({ id: "msg-2", status: "deferred" }));
+    digest.add(makeEntry({ id: "msg-3", status: "dismissed" }));
+    digest.add(makeEntry({ id: "msg-4", status: "handled" }));
+    const result = await tool.execute("call-1", { includeDeferred: true, includeDismissed: true });
+    const parsed = JSON.parse(textContent(result));
+    const allEntries = Object.values(parsed.emails).flat() as any[];
+    expect(allEntries).toHaveLength(3);
   });
 
   it("response shows original status before marking surfaced (mutation order fix)", async () => {
@@ -320,9 +359,7 @@ describe("get_email_digest", () => {
     const result = await tool.execute("call-1", {});
     const parsed = JSON.parse(textContent(result));
     const entries = Object.values(parsed.emails).flat() as any[];
-    // The response should show "new", not "surfaced"
     expect(entries[0].status).toBe("new");
-    // But the entry in the digest should now be "surfaced"
     expect(digest.get("msg-1")?.status).toBe("surfaced");
   });
 
@@ -332,28 +369,6 @@ describe("get_email_digest", () => {
     const result = await tool.execute("call-1", { account: "a@test.com" });
     const parsed = JSON.parse(textContent(result));
     expect(Object.keys(parsed.emails)).toEqual(["a@test.com"]);
-  });
-
-  it("returns error for invalid status", async () => {
-    const result = await tool.execute("call-1", { status: "invalid" });
-    expect(textContent(result)).toContain("status must be one of");
-  });
-
-  it("accepts valid status values", async () => {
-    digest.add(makeEntry({ status: "surfaced" }));
-    const result = await tool.execute("call-1", { status: "surfaced" });
-    const parsed = JSON.parse(textContent(result));
-    const entries = Object.values(parsed.emails).flat() as any[];
-    expect(entries).toHaveLength(1);
-  });
-
-  it("defaults status when non-string is provided", async () => {
-    digest.add(makeEntry({ status: "new" }));
-    // Non-string status should default to "new"
-    const result = await tool.execute("call-1", { status: 42 });
-    const parsed = JSON.parse(textContent(result));
-    const entries = Object.values(parsed.emails).flat() as any[];
-    expect(entries).toHaveLength(1);
   });
 
   it("truncates body to 500 chars", async () => {

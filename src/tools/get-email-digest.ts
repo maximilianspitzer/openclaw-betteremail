@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import type { DigestManager } from "../digest.js";
-import type { DigestStatus } from "../types.js";
+import type { DigestEntry } from "../types.js";
 import { formatAge } from "../utils.js";
 
 export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<void>) {
@@ -8,18 +8,19 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
     name: "get_email_digest",
     label: "Get Email Digest",
     description:
-      "Get current email digest — unresolved emails from all Gmail accounts. " +
+      "Get current email digest — new and surfaced emails from all Gmail accounts. " +
       "Returns emails grouped by account with status and age. " +
-      "Call this to check for new emails or review pending items. " +
-      "Body is truncated to 500 chars; use status 'all' with a specific account to review full emails.",
+      "By default only shows actionable emails (new + surfaced). " +
+      "Use includeDeferred/includeDismissed to also see those categories.",
     parameters: Type.Object({
-      status: Type.Optional(
-        Type.String({
-          description: 'Filter by status: "new", "surfaced", "deferred", or "all". Default: "new"',
-        }),
-      ),
       account: Type.Optional(
         Type.String({ description: "Filter by account email address" }),
+      ),
+      includeDeferred: Type.Optional(
+        Type.Boolean({ description: "Also show deferred emails (default: false)" }),
+      ),
+      includeDismissed: Type.Optional(
+        Type.Boolean({ description: "Also show dismissed emails (default: false)" }),
       ),
       limit: Type.Optional(
         Type.Number({ description: "Max emails to return (default 20). Use 0 for all." }),
@@ -27,18 +28,23 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
     }),
     async execute(_id: string, params: Record<string, unknown>) {
       if (ready) await ready;
-      const validStatuses = ["new", "surfaced", "deferred", "all"];
-      const status = (typeof params.status === "string" ? params.status : "new") as DigestStatus | "all";
-      if (!validStatuses.includes(status)) {
-        return { content: [{ type: "text" as const, text: `Error: status must be one of: ${validStatuses.join(", ")}` }] };
-      }
       const account = typeof params.account === "string" ? params.account : undefined;
+      const includeDeferred = params.includeDeferred === true;
+      const includeDismissed = params.includeDismissed === true;
       const limit = typeof params.limit === "number" && params.limit >= 0 ? params.limit : 20;
 
-      let grouped = digest.getGroupedByAccount(status);
+      const allowedStatuses = new Set(["new", "surfaced"]);
+      if (includeDeferred) allowedStatuses.add("deferred");
+      if (includeDismissed) allowedStatuses.add("dismissed");
 
-      if (account) {
-        grouped = { [account]: grouped[account] ?? [] };
+      const entries = digest.getByStatus("all").filter((e: DigestEntry) => allowedStatuses.has(e.status));
+
+      const grouped: Record<string, DigestEntry[]> = {};
+      for (const entry of entries) {
+        const acc = entry.account;
+        if (account && acc !== account) continue;
+        if (!grouped[acc]) grouped[acc] = [];
+        grouped[acc].push(entry);
       }
 
       // Flatten all entries, sort by date descending (newest first)
