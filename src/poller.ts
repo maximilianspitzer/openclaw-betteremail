@@ -198,7 +198,8 @@ export class Poller {
         date: msg.date ?? new Date().toISOString(),
         body: trimEmailBody(msg.body ?? ""),
         threadLength: thread?.messages.length ?? 1,
-        hasAttachments: Array.isArray(msg.labelIds) && msg.labelIds.includes("ATTACHMENT"),
+        hasAttachments: (Array.isArray(msg.labels) && msg.labels.includes("ATTACHMENT")) ||
+          (Array.isArray(msg.labelIds) && msg.labelIds.includes("ATTACHMENT")),
       });
     }
 

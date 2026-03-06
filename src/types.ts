@@ -30,6 +30,7 @@ export interface RawGogMessage {
   to?: string;
   date?: string;
   body?: string;
+  labels?: string[];
   labelIds?: string[];
   [key: string]: unknown;
 }
