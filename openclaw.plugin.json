@@ -2,7 +2,7 @@
   "id": "betteremail",
   "name": "BetterEmail Digest",
   "description": "Intelligent email digest — polls Gmail, deduplicates, classifies importance, exposes digest to agent",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "skills": ["./skills/betteremail"],
   "configSchema": {
     "type": "object",

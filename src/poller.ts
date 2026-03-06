@@ -12,6 +12,7 @@ export function parseGogMessages(stdout: string): RawGogMessage[] {
   try {
     const parsed = JSON.parse(stdout.trim());
     if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === "object" && Array.isArray(parsed.messages)) return parsed.messages;
     if (parsed && typeof parsed === "object" && parsed.id) return [parsed];
     return [];
   } catch {

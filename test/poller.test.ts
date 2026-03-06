@@ -22,6 +22,20 @@ describe("parseGogMessages", () => {
     const result = parseGogMessages(raw);
     expect(result).toHaveLength(1);
   });
+
+  it("unwraps gog envelope { messages: [...] }", () => {
+    const raw = JSON.stringify({
+      messages: [
+        { id: "msg-1", threadId: "t-1", subject: "Hello" },
+        { id: "msg-2", threadId: "t-2", subject: "World" },
+      ],
+      nextPageToken: "abc",
+    });
+    const result = parseGogMessages(raw);
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe("msg-1");
+    expect(result[1].id).toBe("msg-2");
+  });
 });
 
 describe("parseGogThread", () => {
