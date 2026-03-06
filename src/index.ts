@@ -4,7 +4,6 @@ import type { PluginConfig } from "./types.js";
 import { DigestManager } from "./digest.js";
 import { EmailLog } from "./email-log.js";
 import { Poller } from "./poller.js";
-import { Classifier } from "./classifier.js";
 import { Scheduler } from "./scheduler.js";
 import { runPipeline } from "./pipeline.js";
 import { createGetEmailDigestTool } from "./tools/get-email-digest.js";
@@ -17,7 +16,6 @@ const DEFAULT_CONFIG: PluginConfig = {
   accounts: [],
   pollIntervalMinutes: { workHours: 5, offHours: 30 },
   workHours: { start: 9, end: 18, timezone: "Europe/London" },
-  classifierTimeoutMs: 30_000,
   consecutiveFailuresBeforeAlert: 3,
   rescanDaysOnHistoryReset: 7,
 };
@@ -39,8 +37,6 @@ function resolveConfig(raw: Record<string, unknown> | undefined): PluginConfig {
       end: typeof workHoursRaw.end === "number" ? workHoursRaw.end : DEFAULT_CONFIG.workHours.end,
       timezone: typeof workHoursRaw.timezone === "string" ? workHoursRaw.timezone : DEFAULT_CONFIG.workHours.timezone,
     } : DEFAULT_CONFIG.workHours,
-    classifierTimeoutMs:
-      typeof raw?.classifierTimeoutMs === "number" ? raw.classifierTimeoutMs : DEFAULT_CONFIG.classifierTimeoutMs,
     consecutiveFailuresBeforeAlert:
       typeof raw?.consecutiveFailuresBeforeAlert === "number"
         ? raw.consecutiveFailuresBeforeAlert
@@ -73,8 +69,6 @@ export default {
     const digest = new DigestManager(stateDir);
     const emailLog = new EmailLog(stateDir);
     const poller = new Poller(api, stateDir, config.accounts, config.rescanDaysOnHistoryReset);
-    const classifier = new Classifier(api, config.classifierTimeoutMs);
-
     let initialized = false;
     const initPromise = (async () => {
       try {
@@ -104,7 +98,6 @@ export default {
       await runPipeline({
         accounts: config.accounts,
         poller,
-        classifier,
         digest,
         emailLog,
         logger: api.logger,
