@@ -30,6 +30,7 @@ describe("runPipeline", () => {
       has: vi.fn().mockReturnValue(false),
       getActiveEntries: vi.fn().mockReturnValue([]),
       expireDeferrals: vi.fn().mockReturnValue([]),
+      prune: vi.fn().mockReturnValue(0),
       markHandled: vi.fn(),
     };
 

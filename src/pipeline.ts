@@ -21,6 +21,7 @@ export interface PipelineDeps {
     has(id: string): boolean;
     getActiveEntries(): DigestEntry[];
     expireDeferrals(): DigestEntry[];
+    prune(maxAgeDays: number): number;
     markHandled(id: string): void;
   };
   emailLog: {
@@ -43,6 +44,11 @@ export async function runPipeline(deps: PipelineDeps): Promise<void> {
 
   await poller.loadState();
   await digest.load();
+
+  const pruned = digest.prune(30);
+  if (pruned > 0) {
+    logger.info(`betteremail: pruned ${pruned} resolved email(s) older than 30 days`);
+  }
 
   const expired = digest.expireDeferrals();
   if (expired.length > 0) {

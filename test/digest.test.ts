@@ -145,4 +145,47 @@ describe("DigestManager", () => {
     await digest2.load();
     expect(digest2.get("msg-1")?.subject).toBe("Test email");
   });
+
+  it("prune removes handled/dismissed entries older than maxAgeDays", () => {
+    const old = new Date(Date.now() - 45 * 24 * 60 * 60_000).toISOString();
+    const recent = new Date(Date.now() - 5 * 24 * 60 * 60_000).toISOString();
+
+    digest.add(makeEntry({ id: "old-handled", status: "handled", resolvedAt: old }));
+    digest.add(makeEntry({ id: "old-dismissed", status: "dismissed", resolvedAt: old }));
+    digest.add(makeEntry({ id: "recent-handled", status: "handled", resolvedAt: recent }));
+    digest.add(makeEntry({ id: "active-new", status: "new" }));
+    digest.add(makeEntry({ id: "active-surfaced", status: "surfaced" }));
+    digest.add(makeEntry({ id: "active-deferred", status: "deferred" }));
+
+    const pruned = digest.prune(30);
+
+    expect(pruned).toBe(2);
+    expect(digest.has("old-handled")).toBe(false);
+    expect(digest.has("old-dismissed")).toBe(false);
+    expect(digest.has("recent-handled")).toBe(true);
+    expect(digest.has("active-new")).toBe(true);
+    expect(digest.has("active-surfaced")).toBe(true);
+    expect(digest.has("active-deferred")).toBe(true);
+  });
+
+  it("prune keeps all entries when none are old enough", () => {
+    const recent = new Date(Date.now() - 5 * 24 * 60 * 60_000).toISOString();
+    digest.add(makeEntry({ id: "msg-1", status: "handled", resolvedAt: recent }));
+    digest.add(makeEntry({ id: "msg-2", status: "dismissed", resolvedAt: recent }));
+
+    const pruned = digest.prune(30);
+    expect(pruned).toBe(0);
+    expect(digest.has("msg-1")).toBe(true);
+    expect(digest.has("msg-2")).toBe(true);
+  });
+
+  it("prune never removes active entries regardless of age", () => {
+    const old = new Date(Date.now() - 90 * 24 * 60 * 60_000).toISOString();
+    digest.add(makeEntry({ id: "msg-1", status: "new", firstSeenAt: old }));
+    digest.add(makeEntry({ id: "msg-2", status: "surfaced", firstSeenAt: old }));
+    digest.add(makeEntry({ id: "msg-3", status: "deferred", firstSeenAt: old }));
+
+    const pruned = digest.prune(30);
+    expect(pruned).toBe(0);
+  });
 });

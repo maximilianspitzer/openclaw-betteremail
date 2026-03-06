@@ -106,6 +106,20 @@ export class DigestManager {
     }
   }
 
+  prune(maxAgeDays: number): number {
+    const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60_000;
+    let pruned = 0;
+    for (const [id, entry] of Object.entries(this.state.entries)) {
+      if (entry.status !== "handled" && entry.status !== "dismissed") continue;
+      const resolvedMs = entry.resolvedAt ? new Date(entry.resolvedAt).getTime() : 0;
+      if (resolvedMs > 0 && resolvedMs < cutoff) {
+        delete this.state.entries[id];
+        pruned++;
+      }
+    }
+    return pruned;
+  }
+
   expireDeferrals(): DigestEntry[] {
     const now = new Date();
     const expired: DigestEntry[] = [];
