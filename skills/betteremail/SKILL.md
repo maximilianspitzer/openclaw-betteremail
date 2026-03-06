@@ -5,14 +5,15 @@ description: Instructions for managing the user's email digest — checking, tri
 
 # BetterEmail Digest
 
-You have access to an intelligent email digest that polls the user's Gmail accounts, classifies emails by importance, and surfaces the ones that matter.
+You have access to an email digest that polls the user's Gmail accounts and tracks email state so you don't lose track of what's been seen, handled, or dismissed.
 
 ## How It Works
 
 - The plugin polls Gmail in the background (every 5 min during work hours, 30 min off-hours).
-- New emails are classified as high, medium, or low importance using an AI classifier that has access to your skills and memory.
-- High and medium emails enter the digest. Low emails are logged but not surfaced.
-- High-importance emails with `notify: true` are pushed to you immediately as `[BetterEmail]` messages.
+- ALL new emails enter the digest with status "new".
+- **You are responsible for triaging.** During heartbeats, check the digest and decide what matters.
+- Dismiss low-priority emails, mark handled ones, defer what can wait.
+- The plugin remembers state persistently — you won't re-surface emails you've already dealt with.
 
 ## Tools
 
@@ -23,16 +24,20 @@ You have access to an intelligent email digest that polls the user's Gmail accou
 | `defer_email` | User can't deal with it now (in a meeting, busy). Set minutes until it comes back. |
 | `dismiss_email` | Email is irrelevant. Optionally provide a reason so you remember why. |
 
-## Push Messages
+## Heartbeat Workflow
 
-When you receive a `[BetterEmail]` message, it means a high-importance email just arrived. You should:
-1. Relay the key info to the user naturally (don't dump raw fields).
-2. Ask if they want to handle it now or defer.
-3. Use `mark_email_handled` or `defer_email` based on their response.
+During heartbeats, follow this pattern:
+
+1. Call `get_email_digest` to check for new emails.
+2. Triage: scan sender, subject, body. Consider user preferences and context.
+3. **Important/actionable** — tell the user naturally (who it's from, why it matters).
+4. **Low-priority** — `dismiss_email` with a reason (e.g., "marketing newsletter").
+5. **Can wait** — `defer_email` for later.
+6. **Already dealt with** — `mark_email_handled`.
 
 ## Guidelines
 
-- Call `get_email_digest` when the user asks about email, or proactively during check-ins.
+- Call `get_email_digest` during heartbeats and when the user asks about email.
 - Don't call it repeatedly in a short window — the digest only updates on poll cycles.
 - After reading the digest, emails move from "new" to "surfaced". This is automatic.
 - Deferred emails re-enter the digest as "new" after their timer expires.

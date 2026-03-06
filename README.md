@@ -1,6 +1,6 @@
 # BetterEmail
 
-An OpenClaw plugin that polls Gmail, classifies emails by importance, and exposes a digest to the agent. No Pub/Sub, no webhooks, no Tailscale — just `gog` and a polling loop.
+An OpenClaw plugin that polls Gmail, deduplicates, and tracks email state so the agent can triage during heartbeats. No Pub/Sub, no webhooks, no Tailscale — just `gog` and a polling loop.
 
 ## Prerequisites
 
@@ -46,7 +46,6 @@ plugins:
       start: 9                          # Work hours start (24h)
       end: 18                           # Work hours end (24h)
       timezone: "Europe/London"         # IANA timezone
-    classifierTimeoutMs: 30000          # Timeout for the AI classifier
     consecutiveFailuresBeforeAlert: 3   # Alert agent after N consecutive poll failures
     rescanDaysOnHistoryReset: 7         # Days to look back on first poll or history reset
 ```
@@ -56,11 +55,10 @@ plugins:
 1. **Poll** — Uses `gog gmail history` (incremental) or `gog gmail messages search` (initial/fallback) to fetch new emails
 2. **Deduplicate** — Skips emails already seen via an append-only email log
 3. **Auto-resolve** — Checks active threads for owner replies and marks them handled
-4. **Classify** — Runs a headless agent (via `runEmbeddedPiAgent`) to classify each email as high/medium/low importance
-5. **Digest** — High and medium emails enter the digest; low emails are logged but not surfaced
-6. **Push** — High-importance + notify emails are pushed to the agent immediately
+4. **Digest** — All new emails enter the digest with status "new"
+5. **Agent triage** — The agent checks the digest during heartbeats and triages (dismiss, defer, handle)
 
-The classifier has access to the user's skills and memory, so it learns what matters over time.
+The agent has full context (skills, memory, user preferences) to make smart triage decisions.
 
 ## Agent tools
 
