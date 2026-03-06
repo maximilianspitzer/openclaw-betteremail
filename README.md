@@ -2,6 +2,26 @@
 
 An OpenClaw plugin that polls Gmail, deduplicates, and tracks email state so the agent can triage during heartbeats. No Pub/Sub, no webhooks, no Tailscale — just `gog` and a polling loop.
 
+## Why
+
+Before this plugin existed, the email workflow was duct-taped together and it showed.
+
+The agent (Egon) had to run raw `gog gmail messages search` commands during heartbeats to check for new email. Every check meant parsing the full Gmail output — thousands of tokens burned just to find out there was nothing urgent. On Claude Opus, a single email check could cost 30–40k tokens. Do that a few times a day and it adds up fast.
+
+The deeper problem was state. There was no shared tracking between sessions. A cron job would flag an email that the main session had already handled. The main session would surface something the cron already reported. At one point, the same email from a lawyer got flagged 8+ times across different sessions, heartbeats, and manual checks — because nothing knew what anything else had already seen.
+
+The attempted fix was a manual `notified-emails.json` file. It was unreliable. It didn't survive context resets, didn't work across isolated cron sessions, and had to be maintained by hand.
+
+BetterEmail exists to make this a solved problem:
+
+- Gmail polling happens at the plugin level — zero agent tokens for fetching
+- State is persistent and shared: dismissed means dismissed, handled means handled, across every session and cron job
+- The agent only sees what's actually actionable — new and surfaced emails by default
+- Triage tools (dismiss, defer, handle) are simple, stateful, and permanent
+- Cron jobs and the main session share the same state, so there's no duplication
+
+It was built by a developer (Max) who watched his AI assistant waste tokens and duplicate work because there was no proper foundation under the email workflow. This plugin is that foundation.
+
 ## Prerequisites
 
 - [OpenClaw](https://github.com/steipete/openclaw) instance
