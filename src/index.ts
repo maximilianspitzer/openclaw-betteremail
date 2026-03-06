@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import type { PluginConfig } from "./types.js";
 import { DigestManager } from "./digest.js";
@@ -57,7 +58,7 @@ export default {
 
   register(api: OpenClawPluginApi) {
     const config = resolveConfig(api.pluginConfig as Record<string, unknown> | undefined);
-    const stateDir = api.runtime.state.resolveStateDir();
+    const stateDir = path.join(api.runtime.state.resolveStateDir(), "betteremail");
 
     api.logger.info(
       `betteremail plugin loaded (accounts=${config.accounts.length}, ` +
