@@ -81,10 +81,10 @@ export default {
       }
     })();
 
-    api.registerTool(createGetEmailDigestTool(digest, initPromise), { optional: true });
-    api.registerTool(createMarkEmailHandledTool(digest, initPromise), { optional: true });
-    api.registerTool(createDeferEmailTool(digest, initPromise), { optional: true });
-    api.registerTool(createDismissEmailTool(digest, initPromise), { optional: true });
+    api.registerTool(createGetEmailDigestTool(digest, initPromise));
+    api.registerTool(createMarkEmailHandledTool(digest, initPromise));
+    api.registerTool(createDeferEmailTool(digest, initPromise));
+    api.registerTool(createDismissEmailTool(digest, initPromise));
 
     api.registerCommand({
       name: "emails",
