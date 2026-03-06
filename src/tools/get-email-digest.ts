@@ -9,7 +9,7 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
     label: "Get Email Digest",
     description:
       "Get current email digest — unresolved important emails from all Gmail accounts. " +
-      "Returns emails grouped by account with importance level, reason, and age. " +
+      "Returns emails grouped by account with status and age. " +
       "Call this to check for new emails or review pending items.",
     parameters: Type.Object({
       status: Type.Optional(
@@ -43,8 +43,6 @@ export function createGetEmailDigestTool(digest: DigestManager, ready?: Promise<
           messageId: e.id,
           from: e.from,
           subject: e.subject,
-          importance: e.importance,
-          reason: e.reason,
           status: e.status,
           date: e.date,
           age: formatAge(e.firstSeenAt),

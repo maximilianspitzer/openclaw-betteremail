@@ -30,9 +30,8 @@ export function createEmailsCommandHandler(digest: DigestManager) {
       lines.push(`\n${account} (${newEntries.length} new)`);
 
       for (const entry of active) {
-        const imp = entry.importance === "high" ? "[HIGH]" : "[MED] ";
         const age = formatAge(entry.firstSeenAt);
-        lines.push(`  ${imp} ${entry.subject} from ${entry.from} — ${age}`);
+        lines.push(`  ${entry.subject} from ${entry.from} — ${age}`);
       }
 
       if (deferred.length > 0) {

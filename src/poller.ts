@@ -71,7 +71,7 @@ export class Poller {
     this.stateDir = stateDir;
     this.accounts = accounts;
     this.rescanDays = rescanDays;
-    this.state = { accounts: {}, lastClassifierRunAt: "" };
+    this.state = { accounts: {} };
   }
 
   async loadState(): Promise<void> {
@@ -79,7 +79,7 @@ export class Poller {
       const raw = await fs.readFile(path.join(this.stateDir, STATE_FILE), "utf8");
       this.state = JSON.parse(raw) as PollState;
     } catch {
-      this.state = { accounts: {}, lastClassifierRunAt: "" };
+      this.state = { accounts: {} };
     }
   }
 

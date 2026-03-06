@@ -15,7 +15,6 @@ export interface PluginConfig {
   accounts: string[];
   pollIntervalMinutes: PollIntervalConfig;
   workHours: WorkHoursConfig;
-  classifierTimeoutMs: number;
   consecutiveFailuresBeforeAlert: number;
   rescanDaysOnHistoryReset: number;
 }
@@ -40,7 +39,7 @@ export interface RawGogThread {
   messages: RawGogMessage[];
 }
 
-// -- Trimmed email ready for classification --
+// -- Trimmed email --
 
 export interface TrimmedEmail {
   id: string;
@@ -55,17 +54,6 @@ export interface TrimmedEmail {
   hasAttachments: boolean;
 }
 
-// -- Classification result --
-
-export type ImportanceLevel = "high" | "medium" | "low";
-
-export interface ClassificationResult {
-  id: string;
-  importance: ImportanceLevel;
-  reason: string;
-  notify: boolean;
-}
-
 // -- Digest entry --
 
 export type DigestStatus = "new" | "surfaced" | "deferred" | "handled" | "dismissed";
@@ -78,9 +66,6 @@ export interface DigestEntry {
   subject: string;
   date: string;
   body: string;
-  importance: "high" | "medium";
-  reason: string;
-  notify: boolean;
   status: DigestStatus;
   firstSeenAt: string;
   surfacedAt?: string;
@@ -105,15 +90,11 @@ export interface AccountState {
 
 export interface PollState {
   accounts: Record<string, AccountState>;
-  lastClassifierRunAt: string;
 }
 
 // -- Email log entry (emails.jsonl) --
 
 export interface EmailLogEntry {
   email: TrimmedEmail;
-  importance: ImportanceLevel;
-  reason: string;
-  notify: boolean;
   timestamp: number;
 }
