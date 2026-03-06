@@ -101,6 +101,10 @@ Stored in the plugin's state directory (managed by OpenClaw):
 
 All writes are atomic (write-to-temp-then-rename) to prevent corruption.
 
+## Security audit note
+
+Running `openclaw security audit --deep` may flag a `potential-exfiltration` warning in `src/poller.ts`. This is a false positive — the file read is loading the plugin's own state file (`state.json`) and the network call is `gog` fetching emails from the Gmail API. No user data is sent anywhere other than Gmail's API via gog.
+
 ## License
 
 AGPL-3.0-only
