@@ -13,29 +13,11 @@ An OpenClaw plugin that polls Gmail, classifies emails by importance, and expose
 openclaw plugins install @better_openclaw/betteremail
 ```
 
-## Authenticate gog
+## gog authentication
 
-Each Gmail account must be authenticated with gog. On a headless server (no browser), use the manual flow:
+If gog is already set up on your OpenClaw server (most setups), the plugin works out of the box — it inherits `GOG_KEYRING_PASSWORD` from your OpenClaw `env.vars`.
 
-```bash
-gog auth add you@gmail.com --services user --manual
-```
-
-Then set the keyring password in your OpenClaw config so the plugin can access tokens non-interactively:
-
-```json
-{
-  "env": {
-    "vars": {
-      "GOG_KEYRING_PASSWORD": "your-password"
-    }
-  }
-}
-```
-
-Or set the file keyring backend first: `gog auth keyring file`.
-
-See the [gog docs](https://github.com/steipete/gogcli) for other auth options (remote split flow, service accounts).
+If gog isn't authenticated yet, see the [gog docs](https://github.com/steipete/gogcli) for setup. On a headless server, use `gog auth add you@gmail.com --services user --manual` and make sure `GOG_KEYRING_PASSWORD` is set in your OpenClaw `env.vars`.
 
 ## Configure
 
