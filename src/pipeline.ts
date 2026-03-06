@@ -1,4 +1,4 @@
-import type { TrimmedEmail, ClassificationResult, DigestEntry, EmailLogEntry } from "./types.js";
+import type { TrimmedEmail, DigestEntry, EmailLogEntry } from "./types.js";
 
 export interface PipelineDeps {
   accounts: string[];
@@ -10,9 +10,6 @@ export interface PipelineDeps {
     recordFailure(account: string): number;
     getAccountState(account: string): { historyId: string; lastPollAt: string; consecutiveFailures: number } | undefined;
     checkThreadForReply(threadId: string, account: string): Promise<boolean>;
-  };
-  classifier: {
-    classify(emails: TrimmedEmail[]): Promise<ClassificationResult[]>;
   };
   digest: {
     load(): Promise<void>;
@@ -37,10 +34,8 @@ export interface PipelineDeps {
   consecutiveFailuresBeforeAlert: number;
 }
 
-const BATCH_SIZE = 10;
-
 export async function runPipeline(deps: PipelineDeps): Promise<void> {
-  const { accounts, poller, classifier, digest, emailLog, logger } = deps;
+  const { accounts, poller, digest, emailLog, logger } = deps;
 
   await poller.loadState();
   await digest.load();
@@ -110,74 +105,23 @@ export async function runPipeline(deps: PipelineDeps): Promise<void> {
     return;
   }
 
-  for (let i = 0; i < allNewEmails.length; i += BATCH_SIZE) {
-    const batch = allNewEmails.slice(i, i + BATCH_SIZE);
-    const results = await classifier.classify(batch);
+  for (const email of allNewEmails) {
+    await emailLog.append({ email, timestamp: Date.now() / 1000 });
 
-    for (let j = 0; j < batch.length; j++) {
-      const email = batch[j];
-      const result = results[j];
-
-      await emailLog.append({
-        email,
-        importance: result.importance,
-        reason: result.reason,
-        notify: result.notify,
-        timestamp: Date.now() / 1000,
-      });
-
-      if (result.importance === "high" || result.importance === "medium") {
-        const entry: DigestEntry = {
-          id: email.id,
-          threadId: email.threadId,
-          account: email.account,
-          from: email.from,
-          subject: email.subject,
-          date: email.date,
-          body: email.body,
-          importance: result.importance,
-          reason: result.reason,
-          notify: result.notify,
-          status: "new",
-          firstSeenAt: new Date().toISOString(),
-        };
-        digest.add(entry);
-
-        if (result.importance === "high" && result.notify) {
-          const message = formatPushMessage(email, result);
-          try {
-            await deps.runCommand(
-              [
-                "openclaw", "agent",
-                "--session-id", "main",
-                "--deliver",
-                "--message", message,
-              ],
-              { timeoutMs: 30_000 },
-            );
-            logger.info(`betteremail: pushed ${email.id} to agent`);
-          } catch (err) {
-            logger.error(`betteremail: failed to push to agent: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        }
-      }
-    }
+    const entry: DigestEntry = {
+      id: email.id,
+      threadId: email.threadId,
+      account: email.account,
+      from: email.from,
+      subject: email.subject,
+      date: email.date,
+      body: email.body,
+      status: "new",
+      firstSeenAt: new Date().toISOString(),
+    };
+    digest.add(entry);
   }
 
   await digest.save();
   await poller.saveState();
-}
-
-function formatPushMessage(email: TrimmedEmail, result: ClassificationResult): string {
-  return [
-    "[BetterEmail] New high-importance email:",
-    `From: ${email.from}`,
-    `Subject: ${email.subject}`,
-    `Account: ${email.account}`,
-    `Date: ${email.date}`,
-    `Reason: ${result.reason}`,
-    `MessageID: ${email.id}`,
-    "",
-    "Use defer_email to postpone or mark_email_handled when resolved.",
-  ].join("\n");
 }

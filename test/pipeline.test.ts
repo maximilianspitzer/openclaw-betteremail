@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runPipeline } from "../src/pipeline.js";
-import type { TrimmedEmail, ClassificationResult } from "../src/types.js";
+import type { TrimmedEmail } from "../src/types.js";
 
 function makeEmail(overrides: Partial<TrimmedEmail> = {}): TrimmedEmail {
   return {
@@ -18,7 +18,6 @@ describe("runPipeline", () => {
   let mockDigest: any;
   let mockEmailLog: any;
   let mockPoller: any;
-  let mockClassifier: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -48,19 +47,12 @@ describe("runPipeline", () => {
       getAccountState: vi.fn().mockReturnValue(undefined),
       checkThreadForReply: vi.fn().mockResolvedValue(false),
     };
-
-    mockClassifier = {
-      classify: vi.fn().mockResolvedValue([
-        { id: "msg-1", importance: "high", reason: "urgent", notify: true } as ClassificationResult,
-      ]),
-    };
   });
 
-  it("polls accounts, classifies, and adds to digest", async () => {
+  it("polls accounts and adds all emails to digest", async () => {
     await runPipeline({
       accounts: ["test@gmail.com"],
       poller: mockPoller,
-      classifier: mockClassifier,
       digest: mockDigest,
       emailLog: mockEmailLog,
       logger: mockLogger,
@@ -69,7 +61,6 @@ describe("runPipeline", () => {
     });
 
     expect(mockPoller.pollAccount).toHaveBeenCalledWith("test@gmail.com", expect.any(Set));
-    expect(mockClassifier.classify).toHaveBeenCalledWith([expect.objectContaining({ id: "msg-1" })]);
     expect(mockDigest.add).toHaveBeenCalled();
     expect(mockEmailLog.append).toHaveBeenCalled();
   });
@@ -80,7 +71,6 @@ describe("runPipeline", () => {
     await runPipeline({
       accounts: ["test@gmail.com"],
       poller: mockPoller,
-      classifier: mockClassifier,
       digest: mockDigest,
       emailLog: mockEmailLog,
       logger: mockLogger,
@@ -88,23 +78,18 @@ describe("runPipeline", () => {
       consecutiveFailuresBeforeAlert: 3,
     });
 
-    expect(mockClassifier.classify).not.toHaveBeenCalled();
+    expect(mockDigest.add).not.toHaveBeenCalled();
   });
 
-  it("only adds high/medium to digest, logs all to emailLog", async () => {
+  it("adds all emails to digest regardless of content", async () => {
     mockPoller.pollAccount.mockResolvedValue({
-      emails: [makeEmail({ id: "msg-1" }), makeEmail({ id: "msg-2" })],
+      emails: [makeEmail({ id: "msg-1" }), makeEmail({ id: "msg-2", subject: "50% off sale!" })],
       historyId: "new-hist-456",
     });
-    mockClassifier.classify.mockResolvedValue([
-      { id: "msg-1", importance: "high", reason: "urgent", notify: true },
-      { id: "msg-2", importance: "low", reason: "spam", notify: false },
-    ]);
 
     await runPipeline({
       accounts: ["test@gmail.com"],
       poller: mockPoller,
-      classifier: mockClassifier,
       digest: mockDigest,
       emailLog: mockEmailLog,
       logger: mockLogger,
@@ -113,25 +98,7 @@ describe("runPipeline", () => {
     });
 
     expect(mockEmailLog.append).toHaveBeenCalledTimes(2);
-    expect(mockDigest.add).toHaveBeenCalledTimes(1);
-  });
-
-  it("pushes high+notify emails to main agent", async () => {
-    await runPipeline({
-      accounts: ["test@gmail.com"],
-      poller: mockPoller,
-      classifier: mockClassifier,
-      digest: mockDigest,
-      emailLog: mockEmailLog,
-      logger: mockLogger,
-      runCommand: mockRunCommand,
-      consecutiveFailuresBeforeAlert: 3,
-    });
-
-    expect(mockRunCommand).toHaveBeenCalledWith(
-      expect.arrayContaining(["openclaw", "agent", "--deliver"]),
-      expect.any(Object),
-    );
+    expect(mockDigest.add).toHaveBeenCalledTimes(2);
   });
 
   it("expires deferrals each cycle", async () => {
@@ -141,7 +108,6 @@ describe("runPipeline", () => {
     await runPipeline({
       accounts: ["test@gmail.com"],
       poller: mockPoller,
-      classifier: mockClassifier,
       digest: mockDigest,
       emailLog: mockEmailLog,
       logger: mockLogger,
@@ -159,7 +125,6 @@ describe("runPipeline", () => {
     await runPipeline({
       accounts: ["test@gmail.com"],
       poller: mockPoller,
-      classifier: mockClassifier,
       digest: mockDigest,
       emailLog: mockEmailLog,
       logger: mockLogger,
@@ -178,7 +143,6 @@ describe("runPipeline", () => {
     await runPipeline({
       accounts: ["test@gmail.com"],
       poller: mockPoller,
-      classifier: mockClassifier,
       digest: mockDigest,
       emailLog: mockEmailLog,
       logger: mockLogger,
@@ -191,13 +155,12 @@ describe("runPipeline", () => {
 
   it("builds seenIds from email log", async () => {
     mockEmailLog.readAll.mockResolvedValue([
-      { email: { id: "seen-1" }, importance: "low", reason: "test", notify: false, timestamp: 1 },
+      { email: { id: "seen-1" }, timestamp: 1 },
     ]);
 
     await runPipeline({
       accounts: ["test@gmail.com"],
       poller: mockPoller,
-      classifier: mockClassifier,
       digest: mockDigest,
       emailLog: mockEmailLog,
       logger: mockLogger,
@@ -219,7 +182,6 @@ describe("runPipeline", () => {
     await runPipeline({
       accounts: ["test@gmail.com"],
       poller: mockPoller,
-      classifier: mockClassifier,
       digest: mockDigest,
       emailLog: mockEmailLog,
       logger: mockLogger,
@@ -238,7 +200,6 @@ describe("runPipeline", () => {
     await runPipeline({
       accounts: ["test@gmail.com"],
       poller: mockPoller,
-      classifier: mockClassifier,
       digest: mockDigest,
       emailLog: mockEmailLog,
       logger: mockLogger,
