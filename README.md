@@ -50,6 +50,16 @@ plugins:
     rescanDaysOnHistoryReset: 7         # Days to look back on first poll or history reset
 ```
 
+## Agent setup
+
+After installing, add the following to your agent's `heartbeat.md` so it checks email on every heartbeat:
+
+```
+Check email digest: call get_email_digest to triage new emails. Dismiss junk, defer what can wait, and tell the user about anything important.
+```
+
+Without this, the agent won't know to check for new emails unless asked.
+
 ## How it works
 
 1. **Poll** — Uses `gog gmail history` (incremental) or `gog gmail messages search` (initial/fallback) to fetch new emails
