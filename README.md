@@ -2,25 +2,7 @@
 
 An OpenClaw plugin that polls Gmail, deduplicates, and tracks email state so the agent can triage during heartbeats. No Pub/Sub, no webhooks, no Tailscale — just `gog` and a polling loop.
 
-## Why
-
-Before this plugin existed, the email workflow was duct-taped together and it showed.
-
-The agent (Egon) had to run raw `gog gmail messages search` commands during heartbeats to check for new email. Every check meant parsing the full Gmail output — thousands of tokens burned just to find out there was nothing urgent. On Claude Opus, a single email check could cost 30–40k tokens. Do that a few times a day and it adds up fast.
-
-The deeper problem was state. There was no shared tracking between sessions. A cron job would flag an email that the main session had already handled. The main session would surface something the cron already reported. At one point, the same email from a lawyer got flagged 8+ times across different sessions, heartbeats, and manual checks — because nothing knew what anything else had already seen.
-
-The attempted fix was a manual `notified-emails.json` file. It was unreliable. It didn't survive context resets, didn't work across isolated cron sessions, and had to be maintained by hand.
-
-BetterEmail exists to make this a solved problem:
-
-- Gmail polling happens at the plugin level — zero agent tokens for fetching
-- State is persistent and shared: dismissed means dismissed, handled means handled, across every session and cron job
-- The agent only sees what's actually actionable — new and surfaced emails by default
-- Triage tools (dismiss, defer, handle) are simple, stateful, and permanent
-- Cron jobs and the main session share the same state, so there's no duplication
-
-It was built by a developer (Max) who watched his AI assistant waste tokens and duplicate work because there was no proper foundation under the email workflow. This plugin is that foundation.
+> **Why this exists:** The old email workflow was duct-taped together — raw CLI calls burning 30k+ tokens per check, no shared state between sessions, and the same emails getting flagged over and over. [Read the full story →](#why-this-exists)
 
 ## Prerequisites
 
@@ -132,6 +114,26 @@ All writes are atomic (write-to-temp-then-rename) to prevent corruption.
 ## Security audit note
 
 Running `openclaw security audit --deep` may flag a `potential-exfiltration` warning in `src/poller.ts`. This is a false positive — the file read is loading the plugin's own state file (`state.json`) and the network call is `gog` fetching emails from the Gmail API. No user data is sent anywhere other than Gmail's API via gog.
+
+## Why this exists
+
+Before this plugin, the email workflow was held together with duct tape and hope.
+
+The agent had to run raw `gog gmail messages search` commands during heartbeats to check for new email. Every check meant parsing full Gmail output in the LLM context — on Claude Opus, a single email triage could burn 30–40k tokens just to find out there was nothing urgent. Do that a few times a day across heartbeats and cron jobs, and it adds up fast.
+
+But the real problem was state. There was no shared tracking between sessions. A cron job would flag an email that the main session already handled. The main session would surface something the cron already reported. At one point, the same email from a lawyer got flagged **8 times** across different sessions, heartbeats, and manual checks — because nothing knew what anything else had already seen.
+
+The attempted fix was a manual `notified-emails.json` file that the agent maintained by hand. It was unreliable. It didn't survive context resets, didn't work across isolated cron sessions, and frequently fell out of sync.
+
+BetterEmail exists to make email triage a solved problem:
+
+- **Zero agent tokens for fetching** — polling happens at the plugin level, not in the LLM context
+- **Persistent shared state** — dismissed means dismissed, handled means handled, across every session and cron job
+- **Actionable by default** — the agent only sees new and surfaced emails unless it explicitly asks for more
+- **Simple triage tools** — dismiss, defer, and handle are stateful and permanent
+- **No more duplicates** — cron jobs and the main session share the same state at the plugin level
+
+Built by someone who watched his AI assistant waste tokens and duplicate work because there was no proper foundation under the email workflow. This plugin is that foundation.
 
 ## License
 
