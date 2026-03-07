@@ -42,8 +42,8 @@ plugins:
   betteremail:
     accounts: []                        # Gmail accounts to poll (required)
     pollIntervalMinutes:
-      workHours: 5                      # Poll every 5 min during work hours
-      offHours: 30                      # Poll every 30 min outside work hours
+      workHours: 5                      # Poll Gmail every 5 min during work hours
+      offHours: 30                      # Poll Gmail every 30 min outside work hours
     workHours:
       start: 9                          # Work hours start (24h)
       end: 18                           # Work hours end (24h)
@@ -51,6 +51,8 @@ plugins:
     consecutiveFailuresBeforeAlert: 3   # Alert agent after N consecutive poll failures
     rescanDaysOnHistoryReset: 7         # Days to look back on first poll or history reset
 ```
+
+**Note:** `pollIntervalMinutes` controls how often the plugin fetches new emails from Gmail in the background — this is separate from the cron job, which controls how often the agent triages what's been collected. The plugin fills the digest; the cron tells the agent to look at it.
 
 ## Agent setup
 
@@ -68,15 +70,15 @@ The agent will create a tailored cron job based on your setup. You can always ad
 2. **Deduplicate** — Skips emails already seen via an append-only email log
 3. **Auto-resolve** — Checks active threads for owner replies and marks them handled
 4. **Digest** — All new emails enter the digest with status "new"
-5. **Agent triage** — The agent checks the digest during heartbeats and triages (dismiss, defer, handle)
+5. **Agent triage** — A cron job triggers the agent to check the digest and triage (dismiss, defer, handle)
 
-The agent has full context (skills, memory, user preferences) to make smart triage decisions.
+The agent runs triage in an isolated session with full context (skills, memory, user preferences) and only notifies the main session when something matters.
 
 ## Agent tools
 
 | Tool | Description |
 |------|-------------|
-| `get_email_digest` | Get unresolved emails, optionally filtered by status or account |
+| `get_email_digest` | Get actionable emails (new + surfaced). Use `includeDeferred`/`includeDismissed` flags for more. |
 | `mark_email_handled` | Mark an email as dealt with — removes it from the digest |
 | `defer_email` | Snooze an email for N minutes — it re-enters the digest later |
 | `dismiss_email` | Permanently dismiss an email with an optional reason |
