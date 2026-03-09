@@ -76,7 +76,14 @@ If gog isn't authenticated yet, see the [gog docs](https://github.com/steipete/g
 
 After installing, send the following message to your agent in the main session:
 
-> Set up a cron job for the BetterEmail plugin. It should run in an isolated session during my work hours — call get_email_digest, triage what it finds (dismiss junk, defer what can wait, mark handled what's done), and then notify me in the main session only if there's something important or actionable. Use `openclaw cron add` with isolated session mode and announce delivery to the main session. Pick a sensible schedule based on my timezone and work hours (check my preferences/config if unsure). Don't run it too often — every couple of hours during work hours is a good default. Make sure the cron expression avoids off-hours and weekends unless I've indicated otherwise.
+> Set up a cron job for the BetterEmail plugin. It should run in an isolated session during my work hours — call get_email_digest and triage every email using the available tools:
+>
+> - **dismiss_email** — for spam, marketing, automated notifications, and anything clearly not worth my time. This is permanent.
+> - **defer_email** — for emails that aren't urgent but I might need to act on later (e.g. non-urgent requests, FYIs that need a reply eventually). Pick a reasonable snooze duration so it resurfaces later.
+> - **mark_email_handled** — for emails that are already resolved, purely informational with no action needed, or that I've clearly already responded to.
+> - **Leave in digest** — if you're unsure or the email seems important/actionable, don't touch it. Let me handle it.
+>
+> After triaging, notify me in the main session only if there's something important or actionable left. Use `openclaw cron add` with isolated session mode and announce delivery to the main session. Pick a sensible schedule based on my timezone and work hours (check my preferences/config if unsure). Don't run it too often — every couple of hours during work hours is a good default. Make sure the cron expression avoids off-hours and weekends unless I've indicated otherwise.
 
 The agent will create a tailored cron job based on your setup. Adjust the schedule later with `openclaw cron list` and `openclaw cron remove`.
 
